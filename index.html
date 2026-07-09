@@ -7,11 +7,10 @@
 <link rel="icon" type="image/png" href="logo.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- FIREBASE SDK -->
+<!-- FIREBASE SDK (tanpa Storage) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
@@ -127,6 +126,11 @@
     width:20px; height:20px; border-radius:50%; display:flex; align-items:center;
     justify-content:center; font-size:0.7rem; cursor:pointer;
   }
+  .file-item.compressing { opacity:0.6; }
+  .file-item.compressing::after {
+    content:'⏳'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    font-size:1.5rem;
+  }
 
   .photo-gallery { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
   .photo-item {
@@ -213,16 +217,11 @@
     border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;
   }
 
-  .setup-banner {
-    background:#fff3e0; border:2px solid #ffb300; padding:20px; border-radius:10px;
-    margin:20px; text-align:left;
+  .info-box {
+    background:#e3f2fd; border-left:4px solid #1976d2; padding:15px;
+    border-radius:6px; margin:15px 0; font-size:0.9rem;
   }
-  .setup-banner h3 { color:#e65100; margin-bottom:10px; }
-  .setup-banner ol { margin-left:20px; line-height:1.8; }
-  .setup-banner code {
-    display:block; background:#fff; padding:10px; border-radius:6px;
-    font-size:0.8rem; margin:10px 0; overflow-x:auto; border:1px solid #ddd;
-  }
+  .info-box.warning { background:#fff3e0; border-left-color:#ffb300; }
 
   @media (max-width:768px) {
     .navbar { padding:10px 15px; }
@@ -467,6 +466,11 @@
 
     <div id="inputData" class="section">
       <h2>➕ Input Data Pengambilan Sampah</h2>
+      
+      <div class="info-box warning">
+        💡 <b>Tips:</b> Foto akan otomatis dikompresi untuk menghemat penyimpanan. Maksimal 5 foto per data.
+      </div>
+
       <form onsubmit="addData(event)">
         <div class="form-grid">
           <div class="form-group">
@@ -509,14 +513,14 @@
         </div>
 
         <div class="form-group">
-          <label>Foto Dokumentasi (Multiple)</label>
+          <label>Foto Dokumentasi (Multiple - Max 5)</label>
           <label class="file-upload" for="fFoto">
             <div class="upload-icon">📷</div>
             <div>Klik untuk upload foto (bisa lebih dari 1)</div>
             <input type="file" id="fFoto" multiple accept="image/*" onchange="handleFileSelect(event)">
           </label>
           <div class="file-list" id="fileList"></div>
-          <small style="color:var(--gray);">Foto akan diupload ke Firebase Storage</small>
+          <small style="color:var(--gray);">📦 Foto otomatis dikompresi & disimpan di Firestore (tanpa Storage)</small>
         </div>
 
         <div class="btn-group">
@@ -627,7 +631,7 @@
 
 <script>
 // ============================================================
-// 🔥 FIREBASE CONFIG - SUDAH DIISI
+// 🔥 FIREBASE CONFIG
 // ============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyCd70zeLsmPYBHH1UdKkp4dlrKr57P73yk",
@@ -639,16 +643,14 @@ const firebaseConfig = {
   measurementId: "G-4ZTDBCGGRW"
 };
 
-// Kode registrasi (bisa diganti)
 const REGISTRATION_CODE = "RAJ2025";
 
 // ============================================================
-// INIT FIREBASE
+// INIT FIREBASE (tanpa Storage)
 // ============================================================
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // ============================================================
 // GLOBAL STATE
@@ -656,10 +658,47 @@ const storage = firebase.storage();
 let dataSampah = [];
 let currentUser = null;
 let pubChart, admChart;
-let selectedFiles = [];
+let selectedFiles = []; // {base64, name}
 let editFiles = [];
-let editExistingPhotos = [];
+let editExistingPhotos = []; // array base64
 let unsubscribeData = null;
+
+// ============================================================
+// IMAGE COMPRESSION (untuk hemat Firestore)
+// ============================================================
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize jika lebih besar dari maxWidth
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert ke JPEG base64
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // ============================================================
 // SPLASH & INIT
@@ -822,8 +861,7 @@ function getAuthErrorMessage(code) {
     'auth/email-already-in-use': 'Email sudah digunakan',
     'auth/weak-password': 'Password terlalu lemah (min 6 karakter)',
     'auth/too-many-requests': 'Terlalu banyak percobaan. Coba lagi nanti',
-    'auth/network-request-failed': 'Koneksi internet bermasalah',
-    'auth/permission-denied': 'Akses ditolak'
+    'auth/network-request-failed': 'Koneksi internet bermasalah'
   };
   return messages[code] || code;
 }
@@ -855,12 +893,23 @@ function subscribeToData() {
 // ============================================================
 async function addData(e) {
   e.preventDefault();
+  
+  if (selectedFiles.length > 5) {
+    toast('Maksimal 5 foto per data!', 'error');
+    return;
+  }
+  
   const btnSave = document.getElementById('btnSave');
   btnSave.disabled = true;
-  showLoading('Menyimpan data & upload foto...');
+  showLoading('Mengompresi foto & menyimpan data...');
   
   try {
-    const fotoUrls = await uploadFotos(selectedFiles, 'new_' + Date.now());
+    // Kompresi semua foto
+    const compressedPhotos = [];
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const base64 = await compressImage(selectedFiles[i].file);
+      compressedPhotos.push(base64);
+    }
     
     const newData = {
       tanggal: document.getElementById('fTanggal').value,
@@ -870,7 +919,7 @@ async function addData(e) {
       residu: document.getElementById('fResidu').value ? parseFloat(document.getElementById('fResidu').value) : null,
       petugas: document.getElementById('fPetugas').value,
       catatan: document.getElementById('fCatatan').value,
-      fotos: fotoUrls,
+      fotos: compressedPhotos, // Array base64
       createdBy: currentUser ? currentUser.email : 'unknown',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -915,11 +964,24 @@ async function editData(id) {
 async function updateData(e) {
   e.preventDefault();
   const id = document.getElementById('eId').value;
-  showLoading('Mengupdate data...');
+  
+  const totalPhotos = editExistingPhotos.length + editFiles.length;
+  if (totalPhotos > 5) {
+    toast('Maksimal 5 foto per data!', 'error');
+    return;
+  }
+  
+  showLoading('Mengompresi foto & mengupdate...');
   
   try {
-    const newFotoUrls = await uploadFotos(editFiles, 'edit_' + id + '_' + Date.now());
-    const allFotos = [...editExistingPhotos, ...newFotoUrls];
+    // Kompresi foto baru
+    const newCompressedPhotos = [];
+    for (let i = 0; i < editFiles.length; i++) {
+      const base64 = await compressImage(editFiles[i].file);
+      newCompressedPhotos.push(base64);
+    }
+    
+    const allFotos = [...editExistingPhotos, ...newCompressedPhotos];
     
     const updateData = {
       tanggal: document.getElementById('eTanggal').value,
@@ -946,19 +1008,11 @@ async function updateData(e) {
 }
 
 async function deleteData(id) {
-  if (!confirm('Hapus data ini? Foto terkait juga akan dihapus.')) return;
+  if (!confirm('Hapus data ini?')) return;
   
-  const record = dataSampah.find(d => d.id === id);
   showLoading('Menghapus data...');
   
   try {
-    if (record && record.fotos) {
-      for (const foto of record.fotos) {
-        if (foto.path) {
-          try { await storage.ref(foto.path).delete(); } catch(e) {}
-        }
-      }
-    }
     await db.collection('sampah').doc(id).delete();
     toast('Data dihapus');
   } catch(err) {
@@ -969,31 +1023,17 @@ async function deleteData(id) {
 }
 
 // ============================================================
-// STORAGE - UPLOAD FOTO
-// ============================================================
-async function uploadFotos(files, folder) {
-  const urls = [];
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const path = `fotos/${folder}/${Date.now()}_${i}_${file.name}`;
-    const ref = storage.ref(path);
-    try {
-      const snapshot = await ref.put(file.file);
-      const url = await snapshot.ref.getDownloadURL();
-      urls.push({ url, path });
-    } catch(err) {
-      console.error('Upload error:', err);
-      toast('Gagal upload foto: ' + file.name, 'error');
-    }
-  }
-  return urls;
-}
-
-// ============================================================
 // FILE HANDLING
 // ============================================================
 function handleFileSelect(event) {
   const files = Array.from(event.target.files);
+  
+  if (selectedFiles.length + files.length > 5) {
+    toast('Maksimal 5 foto!', 'error');
+    event.target.value = '';
+    return;
+  }
+  
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -1022,6 +1062,13 @@ function removeFile(idx) {
 
 function handleEditFileSelect(event) {
   const files = Array.from(event.target.files);
+  
+  if (editExistingPhotos.length + editFiles.length + files.length > 5) {
+    toast('Maksimal 5 foto!', 'error');
+    event.target.value = '';
+    return;
+  }
+  
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -1048,6 +1095,13 @@ function removeEditFile(idx) {
   renderEditFileList();
 }
 
+function removeExistingPhoto(idx) {
+  if (confirm('Hapus foto ini?')) {
+    editExistingPhotos.splice(idx, 1);
+    renderEditExistingPhotos();
+  }
+}
+
 function renderEditExistingPhotos() {
   const container = document.getElementById('eExistingPhotos');
   if (editExistingPhotos.length === 0) {
@@ -1055,8 +1109,8 @@ function renderEditExistingPhotos() {
     return;
   }
   container.innerHTML = editExistingPhotos.map((foto, idx) => `
-    <div class="photo-item" onclick="viewPhoto('${foto.url.replace(/'/g, "\\'")}')">
-      <img src="${foto.url}" alt="Foto ${idx+1}">
+    <div class="photo-item" onclick="viewPhoto('${foto.replace(/'/g, "\\'")}')">
+      <img src="${foto}" alt="Foto ${idx+1}">
     </div>
   `).join('');
 }
@@ -1073,7 +1127,7 @@ function closePhotoModal() {
 function viewRecordPhotos(id) {
   const record = dataSampah.find(d => d.id === id);
   if (record && record.fotos && record.fotos.length > 0) {
-    const html = record.fotos.map(f => `<img src="${f.url}" class="full-image" style="margin-bottom:10px;">`).join('');
+    const html = record.fotos.map(f => `<img src="${f}" class="full-image" style="margin-bottom:10px;">`).join('');
     document.getElementById('photoViewer').innerHTML = html;
     document.getElementById('photoModal').classList.add('active');
   }
