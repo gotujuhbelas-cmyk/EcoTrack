@@ -6,6 +6,13 @@
 <title>EcoTRACK - CV Rezeki Amanah Jaya Group</title>
 <link rel="icon" type="image/png" href="logo.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
   :root {
@@ -14,51 +21,37 @@
   }
   body { background:#f5f7fa; color:var(--text); min-height:100vh; }
 
-  /* LOGO - TANPA LINGKARAN PUTIH */
-  .logo-img {
-    width:60px; height:60px; object-fit:contain;
-    /* Hilangkan background putih, border-radius, padding, box-shadow */
-  }
-  .logo-large {
-    width:220px; height:220px; object-fit:contain;
-    /* Hilangkan background putih, border-radius, padding, box-shadow */
-  }
+  .logo-img { width:60px; height:60px; object-fit:contain; }
+  .logo-large { width:220px; height:220px; object-fit:contain; }
 
-  /* NAVBAR */
   .navbar {
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
     color:white; padding:12px 30px; display:flex; justify-content:space-between;
     align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100;
   }
-  .logo { display:flex; align-items:center; gap:12px; font-weight:bold; font-size:1.1rem; }
+  .logo { display:flex; align-items:center; gap:12px; font-weight:bold; }
   .logo-text { display:flex; flex-direction:column; line-height:1.2; }
   .logo-text .brand { font-size:1.1rem; }
   .logo-text .sub { font-size:0.7rem; opacity:0.85; font-weight:normal; }
-  .nav-links { display:flex; gap:15px; align-items:center; }
+  .nav-links { display:flex; gap:15px; align-items:center; flex-wrap:wrap; }
   .nav-links a, .nav-links button {
     color:white; text-decoration:none; background:none; border:none;
     cursor:pointer; font-size:0.95rem; padding:8px 14px; border-radius:6px; transition:.3s;
   }
   .nav-links a:hover, .nav-links button:hover { background:rgba(255,255,255,0.15); }
   .btn-login { background:var(--accent)!important; color:var(--primary-dark)!important; font-weight:600; }
+  .user-info { display:flex; align-items:center; gap:8px; font-size:0.85rem; opacity:0.9; }
   .menu-toggle { display:none; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; }
 
-  /* HERO */
   .hero {
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-    color:white; padding:60px 30px; text-align:center; position:relative;
+    color:white; padding:60px 30px; text-align:center;
   }
-  .hero::before {
-    content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    background:url('logo.png') center/200px no-repeat;
-    opacity:0.08;
-  }
-  .hero h1 { font-size:2.5rem; margin-bottom:15px; position:relative; }
-  .hero p { font-size:1.1rem; opacity:0.95; max-width:700px; margin:0 auto 20px; position:relative; }
-  .hero-badges { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-top:20px; position:relative; }
+  .hero h1 { font-size:2.5rem; margin-bottom:15px; }
+  .hero p { font-size:1.1rem; opacity:0.95; max-width:700px; margin:0 auto 20px; }
+  .hero-badges { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
   .badge { background:rgba(255,255,255,0.2); padding:8px 18px; border-radius:20px; font-size:0.9rem; backdrop-filter:blur(10px); }
 
-  /* SPLASH */
   .splash {
     position:fixed; top:0; left:0; width:100%; height:100%;
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
@@ -75,7 +68,6 @@
   }
   @keyframes spin { to{transform:rotate(360deg);} }
 
-  /* STATS */
   .container { max-width:1200px; margin:0 auto; padding:30px 20px; }
   .stats-grid {
     display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
@@ -93,12 +85,10 @@
   .stat-value { font-size:2rem; font-weight:bold; color:var(--text); }
   .stat-icon { font-size:2rem; float:right; opacity:0.3; }
 
-  /* SECTION */
   .section { background:white; padding:25px; border-radius:12px; margin-bottom:25px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
   .section h2 { color:var(--primary); margin-bottom:20px; display:flex; align-items:center; gap:10px; }
   .chart-container { position:relative; height:300px; }
 
-  /* TABLE */
   .table-wrapper { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; }
   th { background:var(--primary); color:white; padding:12px; text-align:left; font-size:0.9rem; }
@@ -109,7 +99,6 @@
   .status-residu { background:#ffcdd2; color:#c62828; }
   .status-pending { background:#fff3e0; color:#e65100; }
 
-  /* FORM */
   .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; }
   .form-group { margin-bottom:15px; }
   .form-group label { display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--text); }
@@ -119,7 +108,6 @@
   .form-group input:focus, .form-group select:focus { outline:none; border-color:var(--primary); }
   .form-group small { color:var(--gray); font-size:0.8rem; display:block; margin-top:4px; }
   
-  /* FILE UPLOAD */
   .file-upload {
     border:2px dashed var(--primary); border-radius:8px; padding:20px;
     text-align:center; background:var(--light); cursor:pointer; transition:.3s;
@@ -140,7 +128,6 @@
     justify-content:center; font-size:0.7rem; cursor:pointer;
   }
 
-  /* PHOTO GALLERY */
   .photo-gallery { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
   .photo-item {
     width:80px; height:80px; border-radius:6px; overflow:hidden;
@@ -154,13 +141,13 @@
     border-radius:6px; cursor:pointer; font-weight:600; transition:.3s; font-size:0.95rem;
   }
   .btn:hover { background:var(--primary-dark); }
+  .btn:disabled { opacity:0.6; cursor:not-allowed; }
   .btn-secondary { background:var(--gray); }
   .btn-danger { background:#e53935; }
   .btn-warning { background:var(--accent); color:var(--primary-dark); }
   .btn-group { display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; }
   .btn-small { padding:6px 12px; font-size:0.85rem; }
 
-  /* LOGIN */
   .login-container {
     min-height:100vh; display:flex; align-items:center; justify-content:center;
     background:linear-gradient(135deg,var(--primary),var(--primary-dark)); padding:20px;
@@ -172,10 +159,16 @@
   .login-box h2 { color:var(--primary); margin-bottom:10px; }
   .login-box .subtitle { color:var(--gray); margin-bottom:25px; font-size:0.9rem; }
   .login-box .form-group { margin-bottom:15px; text-align:left; }
-  .login-box .btn { width:100%; padding:12px; }
-  .login-info { margin-top:20px; padding:12px; background:#fff3e0; border-radius:6px; font-size:0.85rem; color:#e65100; }
+  .login-box .btn { width:100%; padding:12px; margin-bottom:10px; }
+  .login-info { margin-top:15px; padding:12px; background:#e3f2fd; border-radius:6px; font-size:0.85rem; color:#1565c0; }
+  .login-error { margin-top:10px; padding:10px; background:#ffebee; border-radius:6px; font-size:0.85rem; color:#c62828; display:none; }
+  .tab-switch { display:flex; gap:10px; margin-bottom:20px; }
+  .tab-switch button {
+    flex:1; padding:10px; border:2px solid var(--primary); background:white;
+    color:var(--primary); border-radius:6px; cursor:pointer; font-weight:600; transition:.3s;
+  }
+  .tab-switch button.active { background:var(--primary); color:white; }
 
-  /* MODAL */
   .modal {
     display:none; position:fixed; top:0; left:0; width:100%; height:100%;
     background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;
@@ -193,59 +186,70 @@
   .modal-close:hover { color:var(--text); }
   .modal img.full-image { width:100%; border-radius:8px; margin-top:10px; }
 
-  /* HIDDEN */
   .hidden { display:none!important; }
 
-  /* TOAST */
   .toast {
     position:fixed; bottom:20px; right:20px; background:var(--primary); color:white;
     padding:15px 25px; border-radius:8px; box-shadow:0 5px 20px rgba(0,0,0,0.2);
-    z-index:1000; animation:slideIn .3s;
+    z-index:1100; animation:slideIn .3s; max-width:90%;
   }
   .toast.error { background:#e53935; }
   @keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
 
-  /* FOOTER */
   .footer {
     background:var(--primary-dark); color:white; padding:30px 20px; text-align:center;
   }
   .footer-logo { display:flex; align-items:center; justify-content:center; gap:15px; margin-bottom:15px; flex-wrap:wrap; }
   .footer p { opacity:0.8; font-size:0.9rem; margin:5px 0; }
 
-  /* RESPONSIVE */
+  .loading-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(255,255,255,0.85); display:flex; align-items:center;
+    justify-content:center; z-index:1050; flex-direction:column; gap:15px;
+  }
+  .loading-overlay.hidden { display:none; }
+  .spinner {
+    width:50px; height:50px; border:4px solid var(--light);
+    border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;
+  }
+
+  .setup-banner {
+    background:#fff3e0; border:2px solid #ffb300; padding:20px; border-radius:10px;
+    margin:20px; text-align:left;
+  }
+  .setup-banner h3 { color:#e65100; margin-bottom:10px; }
+  .setup-banner ol { margin-left:20px; line-height:1.8; }
+  .setup-banner code {
+    display:block; background:#fff; padding:10px; border-radius:6px;
+    font-size:0.8rem; margin:10px 0; overflow-x:auto; border:1px solid #ddd;
+  }
+
   @media (max-width:768px) {
     .navbar { padding:10px 15px; }
-    .logo-img { width:50px; height:50px; }
+    .logo-img { width:45px; height:45px; }
     .logo-text .brand { font-size:0.95rem; }
     .logo-text .sub { font-size:0.65rem; }
     .menu-toggle { display:block; }
     .nav-links {
       position:absolute; top:100%; right:0; background:var(--primary-dark);
-      flex-direction:column; width:200px; padding:15px; gap:10px;
+      flex-direction:column; width:220px; padding:15px; gap:10px;
       display:none; box-shadow:0 5px 15px rgba(0,0,0,0.2);
     }
     .nav-links.active { display:flex; }
     .hero { padding:40px 20px; }
     .hero h1 { font-size:1.6rem; }
-    .hero p { font-size:0.95rem; }
     .stat-value { font-size:1.5rem; }
     .section { padding:18px; }
     .chart-container { height:250px; }
     th, td { padding:8px; font-size:0.8rem; }
     .modal-content { padding:20px; }
-    .logo-large { width:180px; height:180px; }
-  }
-
-  /* PRINT */
-  @media print {
-    .navbar, .menu-toggle, .btn-group, .modal { display:none!important; }
-    .section { box-shadow:none; border:1px solid #ddd; }
+    .logo-large { width:160px; height:160px; }
   }
 </style>
 </head>
 <body>
 
-<!-- ============ SPLASH SCREEN ============ -->
+<!-- SPLASH -->
 <div class="splash" id="splashScreen">
   <img src="logo.png" alt="RAJ Logo" class="logo-large" onerror="this.style.display='none'">
   <h1>EcoTRACK</h1>
@@ -254,7 +258,13 @@
   <div class="loader"></div>
 </div>
 
-<!-- ============ PUBLIC DASHBOARD ============ -->
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay hidden">
+  <div class="spinner"></div>
+  <p id="loadingText">Memuat data...</p>
+</div>
+
+<!-- PUBLIC VIEW -->
 <div id="publicView" class="hidden">
   <nav class="navbar">
     <div class="logo">
@@ -297,7 +307,7 @@
         <div class="stat-label">Sampah Diolah (kg)</div>
         <div class="stat-value" id="pubProcessed">0</div>
       </div>
-      <div class="stat-card red"><span class="stat-icon">️</span>
+      <div class="stat-card red"><span class="stat-icon">🗑️</span>
         <div class="stat-label">Sampah Residu (kg)</div>
         <div class="stat-value" id="pubResidue">0</div>
       </div>
@@ -327,7 +337,7 @@
           <p style="color:var(--gray);font-size:0.9rem;">Supplier & Waste Solution Partner</p>
         </div>
       </div>
-      <p><b>CV REZEKI AMANAH JAYA Group</b> adalah mitra terpercaya dalam pengelolaan sampah berkelanjutan. Kami berkomitmen memisahkan sampah organik untuk diolah dan meminimalkan residu ke TPA, mendukung lingkungan yang lebih hijau.</p>
+      <p><b>CV REZEKI AMANAH JAYA Group</b> adalah mitra terpercaya dalam pengelolaan sampah berkelanjutan. Kami berkomitmen memisahkan sampah organik untuk diolah dan meminimalkan residu ke TPA.</p>
       <div class="stats-grid" style="margin-top:20px;">
         <div class="stat-card">
           <div class="stat-label">👥 Klien</div>
@@ -352,30 +362,58 @@
       </div>
     </div>
     <p>EcoTRACK © 2025 - The Hood, Summarecon Serpong - BSD City</p>
-    <p style="font-size:0.8rem;">Powered by Rezeki Amanah Jaya</p>
   </div>
 </div>
 
-<!-- ============ LOGIN VIEW ============ -->
+<!-- LOGIN VIEW -->
 <div id="loginView" class="hidden">
   <div class="login-container">
     <div class="login-box">
       <img src="logo.png" alt="RAJ Logo" class="logo-large" style="margin:0 auto 20px;display:block;" onerror="this.style.display='none'">
-      <h2> Login Admin - EcoTRACK</h2>
+      <h2>🔐 EcoTRACK</h2>
       <p class="subtitle">CV REZEKI AMANAH JAYA Group</p>
-      <form onsubmit="doLogin(event)">
+      
+      <div class="tab-switch">
+        <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
+        <button id="tabRegister" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <form id="loginForm" onsubmit="doFirebaseLogin(event)">
         <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="loginUser" required placeholder="admin">
+          <label>Email</label>
+          <input type="email" id="loginEmail" required placeholder="admin@ecotrack.id">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="loginPass" required placeholder="••••••">
+          <input type="password" id="loginPassword" required placeholder="••••••••">
         </div>
         <button type="submit" class="btn">Masuk</button>
       </form>
+
+      <form id="registerForm" class="hidden" onsubmit="doFirebaseRegister(event)">
+        <div class="form-group">
+          <label>Nama Lengkap</label>
+          <input type="text" id="regName" required placeholder="Nama Anda">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="regEmail" required placeholder="email@ecotrack.id">
+        </div>
+        <div class="form-group">
+          <label>Password (min 6 karakter)</label>
+          <input type="password" id="regPassword" required minlength="6" placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label>Kode Registrasi</label>
+          <input type="text" id="regCode" required placeholder="Masukkan kode">
+          <small>Hubungi admin untuk mendapatkan kode registrasi</small>
+        </div>
+        <button type="submit" class="btn">Daftar</button>
+      </form>
+
+      <div class="login-error" id="loginError"></div>
       <div class="login-info">
-        <b>Demo:</b> admin / admin123
+        💡 <b>Info:</b> Gunakan kode registrasi <b>RAJ2025</b> untuk daftar akun pertama.
       </div>
       <div style="text-align:center;margin-top:15px;">
         <a href="#" onclick="showPublic()" style="color:var(--primary);">← Kembali ke Dashboard</a>
@@ -384,14 +422,14 @@
   </div>
 </div>
 
-<!-- ============ ADMIN DASHBOARD ============ -->
+<!-- ADMIN VIEW -->
 <div id="adminView" class="hidden">
   <nav class="navbar">
     <div class="logo">
       <img src="logo.png" alt="RAJ" class="logo-img" onerror="this.style.display='none'">
       <div class="logo-text">
         <span class="brand">Admin - EcoTRACK</span>
-        <span class="sub">CV Rezeki Amanah Jaya</span>
+        <span class="sub" id="adminUserName">Loading...</span>
       </div>
     </div>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
@@ -399,7 +437,11 @@
       <a href="#inputData">Input Data</a>
       <a href="#dataList">Data</a>
       <a href="#adminChart">Grafik</a>
-      <button onclick="doLogout()">🚪 Logout</button>
+      <div class="user-info">
+        <span>👤</span>
+        <span id="navUserEmail">-</span>
+      </div>
+      <button onclick="doFirebaseLogout()">🚪 Logout</button>
     </div>
   </nav>
 
@@ -474,12 +516,11 @@
             <input type="file" id="fFoto" multiple accept="image/*" onchange="handleFileSelect(event)">
           </label>
           <div class="file-list" id="fileList"></div>
+          <small style="color:var(--gray);">Foto akan diupload ke Firebase Storage</small>
         </div>
 
         <div class="btn-group">
-          <button type="submit" class="btn">💾 Simpan Data</button>
-          <button type="button" class="btn btn-secondary" onclick="syncToSheets()">🔄 Sync ke Google Sheets</button>
-          <button type="button" class="btn btn-secondary" onclick="loadFromSheets()">📥 Load dari Sheets</button>
+          <button type="submit" class="btn" id="btnSave">💾 Simpan Data</button>
         </div>
       </form>
     </div>
@@ -500,19 +541,6 @@
       <h2>📊 Grafik Pengolahan Sampah</h2>
       <div class="chart-container"><canvas id="admChart"></canvas></div>
     </div>
-
-    <div class="section">
-      <h2>️ Pengaturan Google Sheets</h2>
-      <p style="margin-bottom:15px;color:var(--gray);">Masukkan URL Web App Google Apps Script untuk sinkronisasi data.</p>
-      <div class="form-group">
-        <label>Google Sheets Web App URL</label>
-        <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/xxxxx/exec">
-      </div>
-      <div class="btn-group">
-        <button class="btn" onclick="saveSheetsUrl()">💾 Simpan URL</button>
-        <button class="btn btn-secondary" onclick="showSheetsGuide()">📖 Panduan Setup</button>
-      </div>
-    </div>
   </div>
 
   <div class="footer">
@@ -521,11 +549,11 @@
   </div>
 </div>
 
-<!-- ============ EDIT MODAL ============ -->
+<!-- EDIT MODAL -->
 <div id="editModal" class="modal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeEditModal()">×</button>
-    <h2>️ Edit Data Pengambilan</h2>
+    <h2>✏️ Edit Data Pengambilan</h2>
     <form onsubmit="updateData(event)">
       <input type="hidden" id="eId">
       <div class="form-grid">
@@ -588,7 +616,7 @@
   </div>
 </div>
 
-<!-- ============ PHOTO VIEWER MODAL ============ -->
+<!-- PHOTO VIEWER -->
 <div id="photoModal" class="modal" onclick="closePhotoModal()">
   <div class="modal-content" style="max-width:900px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closePhotoModal()">×</button>
@@ -598,197 +626,502 @@
 </div>
 
 <script>
-  // ========== DATA ==========
-  let dataSampah = JSON.parse(localStorage.getItem('dataSampah') || '[]');
-  let sheetsUrl = localStorage.getItem('sheetsUrl') || '';
-  let isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-  let pubChart, admChart;
-  let selectedFiles = [];
-  let editFiles = [];
-  let editExistingPhotos = [];
+// ============================================================
+// 🔥 FIREBASE CONFIG - SUDAH DIISI
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCd70zeLsmPYBHH1UdKkp4dlrKr57P73yk",
+  authDomain: "ecotrack-184c2.firebaseapp.com",
+  projectId: "ecotrack-184c2",
+  storageBucket: "ecotrack-184c2.firebasestorage.app",
+  messagingSenderId: "703447241523",
+  appId: "1:703447241523:web:0841c9817537b0aa82a446",
+  measurementId: "G-4ZTDBCGGRW"
+};
 
-  if (dataSampah.length === 0) {
-    dataSampah = [
-      {id:1,tanggal:'2025-01-10',jenis:'Organik',berat:150,diolah:120,residu:30,petugas:'Budi',catatan:'',fotos:[]},
-      {id:2,tanggal:'2025-01-11',jenis:'Anorganik',berat:80,diolah:65,residu:15,petugas:'Andi',catatan:'',fotos:[]},
-      {id:3,tanggal:'2025-01-12',jenis:'Campuran',berat:200,diolah:null,residu:null,petugas:'Budi',catatan:'Menunggu pengolahan',fotos:[]},
-    ];
-    saveData();
-  }
+// Kode registrasi (bisa diganti)
+const REGISTRATION_CODE = "RAJ2025";
 
-  // ========== SPLASH ==========
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      document.getElementById('splashScreen').classList.add('hidden');
-      init();
-    }, 1500);
-  });
+// ============================================================
+// INIT FIREBASE
+// ============================================================
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-  function init() {
-    document.getElementById('sheetsUrl').value = sheetsUrl;
-    document.getElementById('fTanggal').valueAsDate = new Date();
-    if (isLoggedIn) showAdmin(); else showPublic();
-  }
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let dataSampah = [];
+let currentUser = null;
+let pubChart, admChart;
+let selectedFiles = [];
+let editFiles = [];
+let editExistingPhotos = [];
+let unsubscribeData = null;
 
-  // ========== NAVIGATION ==========
-  function showPublic() {
-    document.getElementById('publicView').classList.remove('hidden');
-    document.getElementById('loginView').classList.add('hidden');
-    document.getElementById('adminView').classList.add('hidden');
-    renderPublic();
-  }
-  function showLogin() {
-    document.getElementById('publicView').classList.add('hidden');
-    document.getElementById('loginView').classList.remove('hidden');
-    document.getElementById('adminView').classList.add('hidden');
-    closeMenu();
-  }
-  function showAdmin() {
-    document.getElementById('publicView').classList.add('hidden');
-    document.getElementById('loginView').classList.add('hidden');
-    document.getElementById('adminView').classList.remove('hidden');
-    renderAdmin();
-    closeMenu();
-  }
-  function toggleMenu() {
-    document.getElementById('navLinks').classList.toggle('active');
-    document.getElementById('adminNavLinks').classList.toggle('active');
-  }
-  function closeMenu() {
-    document.getElementById('navLinks').classList.remove('active');
-    document.getElementById('adminNavLinks').classList.remove('active');
-  }
+// ============================================================
+// SPLASH & INIT
+// ============================================================
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('splashScreen').classList.add('hidden');
+    initApp();
+  }, 1500);
+});
 
-  // ========== LOGIN ==========
-  function doLogin(e) {
-    e.preventDefault();
-    const u = document.getElementById('loginUser').value;
-    const p = document.getElementById('loginPass').value;
-    if (u === 'admin' && p === 'admin123') {
-      sessionStorage.setItem('isLoggedIn','true');
-      isLoggedIn = true;
-      toast('Login berhasil! Selamat datang admin');
+function initApp() {
+  document.getElementById('fTanggal').valueAsDate = new Date();
+  
+  auth.onAuthStateChanged(user => {
+    currentUser = user;
+    if (user) {
+      db.collection('users').doc(user.uid).get().then(doc => {
+        if (doc.exists) {
+          const userData = doc.data();
+          document.getElementById('adminUserName').textContent = userData.nama || user.email;
+          document.getElementById('navUserEmail').textContent = user.email;
+        } else {
+          document.getElementById('adminUserName').textContent = user.email;
+          document.getElementById('navUserEmail').textContent = user.email;
+        }
+      }).catch(() => {
+        document.getElementById('adminUserName').textContent = user.email;
+        document.getElementById('navUserEmail').textContent = user.email;
+      });
       showAdmin();
+      subscribeToData();
     } else {
-      toast('Username/password salah!','error');
+      if (unsubscribeData) unsubscribeData();
+      dataSampah = [];
+      showPublic();
     }
+  });
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPublic() {
+  document.getElementById('publicView').classList.remove('hidden');
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('adminView').classList.add('hidden');
+  renderPublic();
+}
+function showLogin() {
+  document.getElementById('publicView').classList.add('hidden');
+  document.getElementById('loginView').classList.remove('hidden');
+  document.getElementById('adminView').classList.add('hidden');
+  document.getElementById('loginError').style.display = 'none';
+  closeMenu();
+}
+function showAdmin() {
+  document.getElementById('publicView').classList.add('hidden');
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('adminView').classList.remove('hidden');
+  closeMenu();
+}
+function toggleMenu() {
+  document.getElementById('navLinks').classList.toggle('active');
+  document.getElementById('adminNavLinks').classList.toggle('active');
+}
+function closeMenu() {
+  document.getElementById('navLinks').classList.remove('active');
+  document.getElementById('adminNavLinks').classList.remove('active');
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('loginError').style.display = 'none';
+  if (tab === 'login') {
+    document.getElementById('tabLogin').classList.add('active');
+    document.getElementById('tabRegister').classList.remove('active');
+    document.getElementById('loginForm').classList.remove('hidden');
+    document.getElementById('registerForm').classList.add('hidden');
+  } else {
+    document.getElementById('tabLogin').classList.remove('active');
+    document.getElementById('tabRegister').classList.add('active');
+    document.getElementById('loginForm').classList.add('hidden');
+    document.getElementById('registerForm').classList.remove('hidden');
   }
-  function doLogout() {
-    sessionStorage.removeItem('isLoggedIn');
-    isLoggedIn = false;
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doFirebaseLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  showLoading('Memproses login...');
+  
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    errorDiv.style.display = 'none';
+    toast('Login berhasil! Selamat datang');
+  } catch(err) {
+    errorDiv.textContent = '❌ ' + getAuthErrorMessage(err.code);
+    errorDiv.style.display = 'block';
+    hideLoading();
+  }
+}
+
+async function doFirebaseRegister(e) {
+  e.preventDefault();
+  const nama = document.getElementById('regName').value;
+  const email = document.getElementById('regEmail').value;
+  const password = document.getElementById('regPassword').value;
+  const code = document.getElementById('regCode').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  if (code !== REGISTRATION_CODE) {
+    errorDiv.textContent = '❌ Kode registrasi salah! Hubungi admin.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  showLoading('Mendaftar akun...');
+  
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    await db.collection('users').doc(cred.user.uid).set({
+      nama: nama,
+      email: email,
+      role: 'admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    errorDiv.style.display = 'none';
+    toast('Registrasi berhasil!');
+  } catch(err) {
+    errorDiv.textContent = '❌ ' + getAuthErrorMessage(err.code);
+    errorDiv.style.display = 'block';
+    hideLoading();
+  }
+}
+
+async function doFirebaseLogout() {
+  if (!confirm('Yakin ingin logout?')) return;
+  showLoading('Logging out...');
+  try {
+    await auth.signOut();
     toast('Logout berhasil');
-    showPublic();
+  } catch(err) {
+    toast('Gagal logout: ' + err.message, 'error');
+    hideLoading();
   }
+}
 
-  // ========== FILE HANDLING ==========
-  function handleFileSelect(event) {
-    const files = Array.from(event.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        selectedFiles.push({ name: file.name, data: e.target.result, type: file.type });
-        renderFileList();
-      };
-      reader.readAsDataURL(file);
+function getAuthErrorMessage(code) {
+  const messages = {
+    'auth/user-not-found': 'Email tidak terdaftar',
+    'auth/wrong-password': 'Password salah',
+    'auth/invalid-email': 'Format email tidak valid',
+    'auth/invalid-credential': 'Email atau password salah',
+    'auth/email-already-in-use': 'Email sudah digunakan',
+    'auth/weak-password': 'Password terlalu lemah (min 6 karakter)',
+    'auth/too-many-requests': 'Terlalu banyak percobaan. Coba lagi nanti',
+    'auth/network-request-failed': 'Koneksi internet bermasalah',
+    'auth/permission-denied': 'Akses ditolak'
+  };
+  return messages[code] || code;
+}
+
+// ============================================================
+// FIRESTORE - REALTIME
+// ============================================================
+function subscribeToData() {
+  if (unsubscribeData) unsubscribeData();
+  
+  unsubscribeData = db.collection('sampah')
+    .orderBy('tanggal', 'desc')
+    .onSnapshot(snapshot => {
+      dataSampah = [];
+      snapshot.forEach(doc => {
+        dataSampah.push({ id: doc.id, ...doc.data() });
+      });
+      renderAdmin();
+      hideLoading();
+    }, err => {
+      console.error('Firestore error:', err);
+      toast('Gagal memuat data: ' + err.message, 'error');
+      hideLoading();
     });
-  }
+}
 
-  function renderFileList() {
-    const container = document.getElementById('fileList');
-    container.innerHTML = selectedFiles.map((f, idx) => `
-      <div class="file-item" onclick="viewPhoto('${f.data}')">
-        <img src="${f.data}" alt="${f.name}">
-        <div class="remove-file" onclick="event.stopPropagation(); removeFile(${idx})">×</div>
-      </div>
-    `).join('');
-  }
-
-  function removeFile(idx) {
-    selectedFiles.splice(idx, 1);
+// ============================================================
+// CRUD
+// ============================================================
+async function addData(e) {
+  e.preventDefault();
+  const btnSave = document.getElementById('btnSave');
+  btnSave.disabled = true;
+  showLoading('Menyimpan data & upload foto...');
+  
+  try {
+    const fotoUrls = await uploadFotos(selectedFiles, 'new_' + Date.now());
+    
+    const newData = {
+      tanggal: document.getElementById('fTanggal').value,
+      jenis: document.getElementById('fJenis').value,
+      berat: parseFloat(document.getElementById('fBerat').value) || 0,
+      diolah: document.getElementById('fDiolah').value ? parseFloat(document.getElementById('fDiolah').value) : null,
+      residu: document.getElementById('fResidu').value ? parseFloat(document.getElementById('fResidu').value) : null,
+      petugas: document.getElementById('fPetugas').value,
+      catatan: document.getElementById('fCatatan').value,
+      fotos: fotoUrls,
+      createdBy: currentUser ? currentUser.email : 'unknown',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    await db.collection('sampah').add(newData);
+    
+    e.target.reset();
+    selectedFiles = [];
     renderFileList();
+    document.getElementById('fTanggal').valueAsDate = new Date();
+    toast('✅ Data berhasil disimpan!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Gagal menyimpan: ' + err.message, 'error');
+  } finally {
+    btnSave.disabled = false;
+    hideLoading();
   }
+}
 
-  function handleEditFileSelect(event) {
-    const files = Array.from(event.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        editFiles.push({ name: file.name, data: e.target.result, type: file.type });
-        renderEditFileList();
-      };
-      reader.readAsDataURL(file);
-    });
+async function editData(id) {
+  const record = dataSampah.find(d => d.id === id);
+  if (!record) return;
+  
+  document.getElementById('eId').value = record.id;
+  document.getElementById('eTanggal').value = record.tanggal;
+  document.getElementById('eJenis').value = record.jenis;
+  document.getElementById('eBerat').value = record.berat;
+  document.getElementById('eDiolah').value = record.diolah || '';
+  document.getElementById('eResidu').value = record.residu || '';
+  document.getElementById('ePetugas').value = record.petugas;
+  document.getElementById('eCatatan').value = record.catatan || '';
+  
+  editExistingPhotos = record.fotos || [];
+  editFiles = [];
+  renderEditExistingPhotos();
+  renderEditFileList();
+  
+  document.getElementById('editModal').classList.add('active');
+}
+
+async function updateData(e) {
+  e.preventDefault();
+  const id = document.getElementById('eId').value;
+  showLoading('Mengupdate data...');
+  
+  try {
+    const newFotoUrls = await uploadFotos(editFiles, 'edit_' + id + '_' + Date.now());
+    const allFotos = [...editExistingPhotos, ...newFotoUrls];
+    
+    const updateData = {
+      tanggal: document.getElementById('eTanggal').value,
+      jenis: document.getElementById('eJenis').value,
+      berat: parseFloat(document.getElementById('eBerat').value) || 0,
+      diolah: document.getElementById('eDiolah').value ? parseFloat(document.getElementById('eDiolah').value) : null,
+      residu: document.getElementById('eResidu').value ? parseFloat(document.getElementById('eResidu').value) : null,
+      petugas: document.getElementById('ePetugas').value,
+      catatan: document.getElementById('eCatatan').value,
+      fotos: allFotos,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: currentUser ? currentUser.email : 'unknown'
+    };
+    
+    await db.collection('sampah').doc(id).update(updateData);
+    closeEditModal();
+    toast('✅ Data berhasil diupdate!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Gagal update: ' + err.message, 'error');
+  } finally {
+    hideLoading();
   }
+}
 
-  function renderEditFileList() {
-    const container = document.getElementById('eFileList');
-    container.innerHTML = editFiles.map((f, idx) => `
-      <div class="file-item" onclick="viewPhoto('${f.data}')">
-        <img src="${f.data}" alt="${f.name}">
-        <div class="remove-file" onclick="event.stopPropagation(); removeEditFile(${idx})">×</div>
-      </div>
-    `).join('');
-  }
-
-  function removeEditFile(idx) {
-    editFiles.splice(idx, 1);
-    renderEditFileList();
-  }
-
-  function renderEditExistingPhotos() {
-    const container = document.getElementById('eExistingPhotos');
-    if (editExistingPhotos.length === 0) {
-      container.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">Belum ada foto</p>';
-      return;
+async function deleteData(id) {
+  if (!confirm('Hapus data ini? Foto terkait juga akan dihapus.')) return;
+  
+  const record = dataSampah.find(d => d.id === id);
+  showLoading('Menghapus data...');
+  
+  try {
+    if (record && record.fotos) {
+      for (const foto of record.fotos) {
+        if (foto.path) {
+          try { await storage.ref(foto.path).delete(); } catch(e) {}
+        }
+      }
     }
-    container.innerHTML = editExistingPhotos.map((foto, idx) => `
-      <div class="photo-item" onclick="viewPhoto('${foto}')">
-        <img src="${foto}" alt="Foto ${idx+1}">
-      </div>
-    `).join('');
+    await db.collection('sampah').doc(id).delete();
+    toast('Data dihapus');
+  } catch(err) {
+    toast('Gagal hapus: ' + err.message, 'error');
+  } finally {
+    hideLoading();
   }
+}
 
-  function viewPhoto(src) {
-    document.getElementById('photoViewer').innerHTML = `<img src="${src}" class="full-image">`;
+// ============================================================
+// STORAGE - UPLOAD FOTO
+// ============================================================
+async function uploadFotos(files, folder) {
+  const urls = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const path = `fotos/${folder}/${Date.now()}_${i}_${file.name}`;
+    const ref = storage.ref(path);
+    try {
+      const snapshot = await ref.put(file.file);
+      const url = await snapshot.ref.getDownloadURL();
+      urls.push({ url, path });
+    } catch(err) {
+      console.error('Upload error:', err);
+      toast('Gagal upload foto: ' + file.name, 'error');
+    }
+  }
+  return urls;
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleFileSelect(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      selectedFiles.push({ file, dataUrl: e.target.result, name: file.name });
+      renderFileList();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderFileList() {
+  const container = document.getElementById('fileList');
+  container.innerHTML = selectedFiles.map((f, idx) => `
+    <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
+      <img src="${f.dataUrl}" alt="${f.name}">
+      <div class="remove-file" onclick="event.stopPropagation(); removeFile(${idx})">×</div>
+    </div>
+  `).join('');
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderFileList();
+}
+
+function handleEditFileSelect(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      editFiles.push({ file, dataUrl: e.target.result, name: file.name });
+      renderEditFileList();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderEditFileList() {
+  const container = document.getElementById('eFileList');
+  container.innerHTML = editFiles.map((f, idx) => `
+    <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
+      <img src="${f.dataUrl}" alt="${f.name}">
+      <div class="remove-file" onclick="event.stopPropagation(); removeEditFile(${idx})">×</div>
+    </div>
+  `).join('');
+}
+
+function removeEditFile(idx) {
+  editFiles.splice(idx, 1);
+  renderEditFileList();
+}
+
+function renderEditExistingPhotos() {
+  const container = document.getElementById('eExistingPhotos');
+  if (editExistingPhotos.length === 0) {
+    container.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">Belum ada foto</p>';
+    return;
+  }
+  container.innerHTML = editExistingPhotos.map((foto, idx) => `
+    <div class="photo-item" onclick="viewPhoto('${foto.url.replace(/'/g, "\\'")}')">
+      <img src="${foto.url}" alt="Foto ${idx+1}">
+    </div>
+  `).join('');
+}
+
+function viewPhoto(src) {
+  document.getElementById('photoViewer').innerHTML = `<img src="${src}" class="full-image">`;
+  document.getElementById('photoModal').classList.add('active');
+}
+
+function closePhotoModal() {
+  document.getElementById('photoModal').classList.remove('active');
+}
+
+function viewRecordPhotos(id) {
+  const record = dataSampah.find(d => d.id === id);
+  if (record && record.fotos && record.fotos.length > 0) {
+    const html = record.fotos.map(f => `<img src="${f.url}" class="full-image" style="margin-bottom:10px;">`).join('');
+    document.getElementById('photoViewer').innerHTML = html;
     document.getElementById('photoModal').classList.add('active');
   }
+}
 
-  function closePhotoModal() {
-    document.getElementById('photoModal').classList.remove('active');
-  }
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editFiles = [];
+  editExistingPhotos = [];
+}
 
-  // ========== RENDER ==========
-  function renderPublic() {
-    const totalPickup = dataSampah.length;
-    const totalWeight = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0);
-    const totalProcessed = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0);
-    const totalResidue = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0);
-    document.getElementById('pubTotalPickup').textContent = totalPickup;
-    document.getElementById('pubTotalWeight').textContent = totalWeight.toFixed(1);
-    document.getElementById('pubProcessed').textContent = totalProcessed.toFixed(1);
-    document.getElementById('pubResidue').textContent = totalResidue.toFixed(1);
+// ============================================================
+// RENDER
+// ============================================================
+function renderPublic() {
+  const totalPickup = dataSampah.length;
+  const totalWeight = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0);
+  const totalProcessed = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0);
+  const totalResidue = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0);
+  
+  document.getElementById('pubTotalPickup').textContent = totalPickup;
+  document.getElementById('pubTotalWeight').textContent = totalWeight.toFixed(1);
+  document.getElementById('pubProcessed').textContent = totalProcessed.toFixed(1);
+  document.getElementById('pubResidue').textContent = totalResidue.toFixed(1);
 
-    const tbody = document.getElementById('pubTable');
-    tbody.innerHTML = dataSampah.slice(-5).reverse().map(d => {
-      const hasProcessed = d.diolah !== null && d.diolah !== '';
-      const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
-      const statusText = hasProcessed ? `${d.diolah} kg diolah` : 'Menunggu';
-      const fotoCount = d.fotos && d.fotos.length > 0 ? `📷 ${d.fotos.length}` : '-';
-      return `
-        <tr>
-          <td>${d.tanggal}</td>
-          <td>${d.jenis}</td>
-          <td>${d.berat}</td>
-          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-          <td>${fotoCount}</td>
-        </tr>
-      `;
-    }).join('');
+  const tbody = document.getElementById('pubTable');
+  tbody.innerHTML = dataSampah.slice(0, 5).map(d => {
+    const hasProcessed = d.diolah !== null && d.diolah !== undefined;
+    const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
+    const statusText = hasProcessed ? `${d.diolah} kg diolah` : 'Menunggu';
+    const fotoCount = d.fotos && d.fotos.length > 0 ? `📷 ${d.fotos.length}` : '-';
+    return `
+      <tr>
+        <td>${d.tanggal}</td>
+        <td>${d.jenis}</td>
+        <td>${d.berat}</td>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+        <td>${fotoCount}</td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data</td></tr>';
 
-    const labels = dataSampah.slice(-7).map(d=>d.tanggal);
-    const diolah = dataSampah.slice(-7).map(d=>d.diolah||0);
-    const residu = dataSampah.slice(-7).map(d=>d.residu||0);
-    if (pubChart) pubChart.destroy();
+  const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
+  const labels = sorted.map(d=>d.tanggal);
+  const diolah = sorted.map(d=>d.diolah||0);
+  const residu = sorted.map(d=>d.residu||0);
+  if (pubChart) pubChart.destroy();
+  if (sorted.length > 0) {
     pubChart = new Chart(document.getElementById('pubChart'), {
       type:'bar',
       data:{labels,datasets:[
@@ -798,46 +1131,50 @@
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
     });
   }
+}
 
-  function renderAdmin() {
-    renderPublic();
-    const totalPickup = dataSampah.length;
-    const totalWeight = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0);
-    const totalProcessed = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0);
-    const totalResidue = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0);
-    document.getElementById('admTotalPickup').textContent = totalPickup;
-    document.getElementById('admTotalWeight').textContent = totalWeight.toFixed(1);
-    document.getElementById('admProcessed').textContent = totalProcessed.toFixed(1);
-    document.getElementById('admResidue').textContent = totalResidue.toFixed(1);
+function renderAdmin() {
+  renderPublic();
+  const totalPickup = dataSampah.length;
+  const totalWeight = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0);
+  const totalProcessed = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0);
+  const totalResidue = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0);
+  
+  document.getElementById('admTotalPickup').textContent = totalPickup;
+  document.getElementById('admTotalWeight').textContent = totalWeight.toFixed(1);
+  document.getElementById('admProcessed').textContent = totalProcessed.toFixed(1);
+  document.getElementById('admResidue').textContent = totalResidue.toFixed(1);
 
-    const tbody = document.getElementById('admTable');
-    tbody.innerHTML = dataSampah.slice().reverse().map(d => {
-      const hasProcessed = d.diolah !== null && d.diolah !== '';
-      const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
-      const diolahText = hasProcessed ? d.diolah : '-';
-      const residuText = d.residu !== null && d.residu !== '' ? d.residu : '-';
-      const fotoCount = d.fotos && d.fotos.length > 0 ? d.fotos.length : 0;
-      return `
-        <tr>
-          <td>${d.tanggal}</td>
-          <td>${d.jenis}</td>
-          <td>${d.berat} kg</td>
-          <td><span class="status-badge ${statusClass}">${diolahText}</span></td>
-          <td><span class="status-badge ${hasProcessed ? 'status-residu' : 'status-pending'}">${residuText}</span></td>
-          <td>${d.petugas}</td>
-          <td>${fotoCount > 0 ? `<span style="cursor:pointer;color:var(--primary);" onclick="viewRecordPhotos(${d.id})"> ${fotoCount}</span>` : '-'}</td>
-          <td>
-            <button class="btn btn-warning btn-small" onclick="editData(${d.id})">✏️</button>
-            <button class="btn btn-danger btn-small" onclick="deleteData(${d.id})">🗑️</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+  const tbody = document.getElementById('admTable');
+  tbody.innerHTML = dataSampah.map(d => {
+    const hasProcessed = d.diolah !== null && d.diolah !== undefined;
+    const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
+    const diolahText = hasProcessed ? d.diolah : '-';
+    const residuText = d.residu !== null && d.residu !== undefined ? d.residu : '-';
+    const fotoCount = d.fotos && d.fotos.length > 0 ? d.fotos.length : 0;
+    return `
+      <tr>
+        <td>${d.tanggal}</td>
+        <td>${d.jenis}</td>
+        <td>${d.berat} kg</td>
+        <td><span class="status-badge ${statusClass}">${diolahText}</span></td>
+        <td><span class="status-badge ${hasProcessed ? 'status-residu' : 'status-pending'}">${residuText}</span></td>
+        <td>${d.petugas}</td>
+        <td>${fotoCount > 0 ? `<span style="cursor:pointer;color:var(--primary);" onclick="viewRecordPhotos('${d.id}')">📷 ${fotoCount}</span>` : '-'}</td>
+        <td>
+          <button class="btn btn-warning btn-small" onclick="editData('${d.id}')">✏️</button>
+          <button class="btn btn-danger btn-small" onclick="deleteData('${d.id}')">🗑️</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data. Silakan input data pertama.</td></tr>';
 
-    const labels = dataSampah.slice(-7).map(d=>d.tanggal);
-    const diolah = dataSampah.slice(-7).map(d=>d.diolah||0);
-    const residu = dataSampah.slice(-7).map(d=>d.residu||0);
-    if (admChart) admChart.destroy();
+  const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
+  const labels = sorted.map(d=>d.tanggal);
+  const diolah = sorted.map(d=>d.diolah||0);
+  const residu = sorted.map(d=>d.residu||0);
+  if (admChart) admChart.destroy();
+  if (sorted.length > 0) {
     admChart = new Chart(document.getElementById('admChart'), {
       type:'line',
       data:{labels,datasets:[
@@ -847,186 +1184,26 @@
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
     });
   }
-
-  function viewRecordPhotos(id) {
-    const record = dataSampah.find(d => d.id === id);
-    if (record && record.fotos && record.fotos.length > 0) {
-      const html = record.fotos.map(f => `<img src="${f}" class="full-image" style="margin-bottom:10px;">`).join('');
-      document.getElementById('photoViewer').innerHTML = html;
-      document.getElementById('photoModal').classList.add('active');
-    }
-  }
-
-  // ========== CRUD ==========
-  function addData(e) {
-    e.preventDefault();
-    const newData = {
-      id: Date.now(),
-      tanggal: document.getElementById('fTanggal').value,
-      jenis: document.getElementById('fJenis').value,
-      berat: parseFloat(document.getElementById('fBerat').value) || 0,
-      diolah: document.getElementById('fDiolah').value ? parseFloat(document.getElementById('fDiolah').value) : null,
-      residu: document.getElementById('fResidu').value ? parseFloat(document.getElementById('fResidu').value) : null,
-      petugas: document.getElementById('fPetugas').value,
-      catatan: document.getElementById('fCatatan').value,
-      fotos: selectedFiles.map(f => f.data)
-    };
-    dataSampah.push(newData);
-    saveData();
-    renderAdmin();
-    e.target.reset();
-    selectedFiles = [];
-    renderFileList();
-    document.getElementById('fTanggal').valueAsDate = new Date();
-    toast('Data berhasil disimpan!');
-  }
-
-  function editData(id) {
-    const record = dataSampah.find(d => d.id === id);
-    if (!record) return;
-    
-    document.getElementById('eId').value = record.id;
-    document.getElementById('eTanggal').value = record.tanggal;
-    document.getElementById('eJenis').value = record.jenis;
-    document.getElementById('eBerat').value = record.berat;
-    document.getElementById('eDiolah').value = record.diolah || '';
-    document.getElementById('eResidu').value = record.residu || '';
-    document.getElementById('ePetugas').value = record.petugas;
-    document.getElementById('eCatatan').value = record.catatan || '';
-    
-    editExistingPhotos = record.fotos || [];
-    editFiles = [];
-    renderEditExistingPhotos();
-    renderEditFileList();
-    
-    document.getElementById('editModal').classList.add('active');
-  }
-
-  function updateData(e) {
-    e.preventDefault();
-    const id = parseInt(document.getElementById('eId').value);
-    const idx = dataSampah.findIndex(d => d.id === id);
-    if (idx === -1) return;
-    
-    dataSampah[idx] = {
-      ...dataSampah[idx],
-      tanggal: document.getElementById('eTanggal').value,
-      jenis: document.getElementById('eJenis').value,
-      berat: parseFloat(document.getElementById('eBerat').value) || 0,
-      diolah: document.getElementById('eDiolah').value ? parseFloat(document.getElementById('eDiolah').value) : null,
-      residu: document.getElementById('eResidu').value ? parseFloat(document.getElementById('eResidu').value) : null,
-      petugas: document.getElementById('ePetugas').value,
-      catatan: document.getElementById('eCatatan').value,
-      fotos: [...editExistingPhotos, ...editFiles.map(f => f.data)]
-    };
-    
-    saveData();
-    renderAdmin();
-    closeEditModal();
-    toast('Data berhasil diupdate!');
-  }
-
-  function closeEditModal() {
-    document.getElementById('editModal').classList.remove('active');
-    editFiles = [];
-    editExistingPhotos = [];
-  }
-
-  function deleteData(id) {
-    if (!confirm('Hapus data ini?')) return;
-    dataSampah = dataSampah.filter(d=>d.id!==id);
-    saveData();
-    renderAdmin();
-    toast('Data dihapus');
-  }
-
-  function saveData() {
-    localStorage.setItem('dataSampah', JSON.stringify(dataSampah));
-  }
-
-  // ========== GOOGLE SHEETS ==========
-  function saveSheetsUrl() {
-    sheetsUrl = document.getElementById('sheetsUrl').value.trim();
-    localStorage.setItem('sheetsUrl', sheetsUrl);
-    toast('URL Google Sheets tersimpan!');
-  }
-
-  async function syncToSheets() {
-    if (!sheetsUrl) { toast('URL Google Sheets belum diatur!','error'); return; }
-    try {
-      await fetch(sheetsUrl, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({action:'saveAll', data:dataSampah})
-      });
-      toast('Data dikirim ke Google Sheets!');
-    } catch(err) {
-      toast('Gagal sync: '+err.message,'error');
-    }
-  }
-
-  async function loadFromSheets() {
-    if (!sheetsUrl) { toast('URL Google Sheets belum diatur!','error'); return; }
-    try {
-      const res = await fetch(sheetsUrl+'?action=load');
-      const result = await res.json();
-      if (result.data && Array.isArray(result.data)) {
-        dataSampah = result.data;
-        saveData();
-        renderAdmin();
-        toast('Data dimuat dari Google Sheets!');
-      } else {
-        toast('Format data tidak valid','error');
-      }
-    } catch(err) {
-      toast('Gagal load: '+err.message,'error');
-    }
-  }
-
-  function showSheetsGuide() {
-    alert(`📖 PANDUAN SETUP GOOGLE SHEETS:
-
-1. Buat Google Spreadsheet baru
-2. Menu Extensions > Apps Script
-3. Paste kode berikut:
-
-function doPost(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = JSON.parse(e.postData.contents);
-  if (data.action === 'saveAll') {
-    sheet.clear();
-    sheet.appendRow(['ID','Tanggal','Jenis','Berat','Diolah','Residu','Petugas','Catatan','FotoCount']);
-    data.data.forEach(d => {
-      sheet.appendRow([d.id,d.tanggal,d.jenis,d.berat,d.diolah||'',d.residu||'',d.petugas,d.catatan||'',d.fotos?d.fotos.length:0]);
-    });
-    return ContentService.createTextOutput(JSON.stringify({status:'ok'}));
-  }
 }
 
-function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const values = sheet.getDataRange().getValues();
-  const data = values.slice(1).map(r => ({
-    id:r[0],tanggal:r[1],jenis:r[2],berat:r[3],
-    diolah:r[4]||null,residu:r[5]||null,petugas:r[6],catatan:r[7]||'',fotos:[]
-  }));
-  return ContentService.createTextOutput(JSON.stringify({data}))
-    .setMimeType(ContentService.MimeType.JSON);
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showLoading(text='Memuat...') {
+  document.getElementById('loadingText').textContent = text;
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
-4. Deploy > New Deployment > Web App
-5. Execute as: Me | Access: Anyone
-6. Copy URL, paste di pengaturan aplikasi`);
-  }
-
-  // ========== TOAST ==========
-  function toast(msg, type='success') {
-    const t = document.createElement('div');
-    t.className = 'toast ' + (type==='error'?'error':'');
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(()=>t.remove(), 3000);
-  }
+function toast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type==='error'?'error':'');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
 </script>
 </body>
 </html>
