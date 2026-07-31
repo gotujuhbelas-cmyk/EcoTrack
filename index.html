@@ -7,75 +7,44 @@
 <link rel="icon" type="image/png" href="logo.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- FIREBASE SDK (tanpa Storage) -->
+<!-- Leaflet CSS & JS untuk Peta -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
-  :root {
-    --primary:#2e7d32; --primary-dark:#1b5e20; --secondary:#4caf50;
-    --accent:#ffb300; --light:#f1f8e9; --text:#263238; --gray:#607d8b;
-  }
+  :root { --primary:#2e7d32; --primary-dark:#1b5e20; --secondary:#4caf50; --accent:#ffb300; --light:#f1f8e9; --text:#263238; --gray:#607d8b; }
   body { background:#f5f7fa; color:var(--text); min-height:100vh; }
-
   .logo-img { width:60px; height:60px; object-fit:contain; }
   .logo-large { width:220px; height:220px; object-fit:contain; }
-
-  .navbar {
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-    color:white; padding:12px 30px; display:flex; justify-content:space-between;
-    align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100;
-  }
+  .navbar { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; padding:12px 30px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; }
   .logo { display:flex; align-items:center; gap:12px; font-weight:bold; }
   .logo-text { display:flex; flex-direction:column; line-height:1.2; }
   .logo-text .brand { font-size:1.1rem; }
   .logo-text .sub { font-size:0.7rem; opacity:0.85; font-weight:normal; }
   .nav-links { display:flex; gap:15px; align-items:center; flex-wrap:wrap; }
-  .nav-links a, .nav-links button {
-    color:white; text-decoration:none; background:none; border:none;
-    cursor:pointer; font-size:0.95rem; padding:8px 14px; border-radius:6px; transition:.3s;
-  }
+  .nav-links a, .nav-links button { color:white; text-decoration:none; background:none; border:none; cursor:pointer; font-size:0.95rem; padding:8px 14px; border-radius:6px; transition:.3s; }
   .nav-links a:hover, .nav-links button:hover { background:rgba(255,255,255,0.15); }
   .btn-login { background:var(--accent)!important; color:var(--primary-dark)!important; font-weight:600; }
   .user-info { display:flex; align-items:center; gap:8px; font-size:0.85rem; opacity:0.9; }
   .menu-toggle { display:none; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; }
-
-  .hero {
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-    color:white; padding:60px 30px; text-align:center;
-  }
+  .hero { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; padding:60px 30px; text-align:center; }
   .hero h1 { font-size:2.5rem; margin-bottom:15px; }
   .hero p { font-size:1.1rem; opacity:0.95; max-width:700px; margin:0 auto 20px; }
   .hero-badges { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
   .badge { background:rgba(255,255,255,0.2); padding:8px 18px; border-radius:20px; font-size:0.9rem; backdrop-filter:blur(10px); }
-
-  .splash {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    z-index:9999; transition:opacity .5s;
-  }
+  .splash { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; transition:opacity .5s; }
   .splash.hidden { opacity:0; pointer-events:none; }
-  .splash h1 { color:white; margin-top:20px; font-size:2rem; }
-  .splash p { color:rgba(255,255,255,0.8); margin-top:10px; }
-  .loader {
-    width:50px; height:50px; border:4px solid rgba(255,255,255,0.3);
-    border-top-color:white; border-radius:50%; animation:spin 1s linear infinite;
-    margin-top:30px;
-  }
+  .loader { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 1s linear infinite; margin-top:30px; }
   @keyframes spin { to{transform:rotate(360deg);} }
-
   .container { max-width:1200px; margin:0 auto; padding:30px 20px; }
-  .stats-grid {
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:20px; margin-bottom:30px;
-  }
-  .stat-card {
-    background:white; padding:25px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);
-    border-left:5px solid var(--primary); transition:.3s;
-  }
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; margin-bottom:30px; }
+  .stat-card { background:white; padding:25px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); border-left:5px solid var(--primary); transition:.3s; }
   .stat-card:hover { transform:translateY(-5px); box-shadow:0 5px 20px rgba(0,0,0,0.1); }
   .stat-card.orange { border-left-color:var(--accent); }
   .stat-card.red { border-left-color:#e53935; }
@@ -83,11 +52,9 @@
   .stat-label { color:var(--gray); font-size:0.9rem; margin-bottom:8px; }
   .stat-value { font-size:2rem; font-weight:bold; color:var(--text); }
   .stat-icon { font-size:2rem; float:right; opacity:0.3; }
-
   .section { background:white; padding:25px; border-radius:12px; margin-bottom:25px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
   .section h2 { color:var(--primary); margin-bottom:20px; display:flex; align-items:center; gap:10px; }
   .chart-container { position:relative; height:300px; }
-
   .table-wrapper { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; }
   th { background:var(--primary); color:white; padding:12px; text-align:left; font-size:0.9rem; }
@@ -95,55 +62,28 @@
   tr:hover { background:#f9f9f9; }
   .status-badge { padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:600; }
   .status-diolah { background:#c8e6c9; color:#2e7d32; }
-  .status-residu { background:#ffcdd2; color:#c62828; }
   .status-pending { background:#fff3e0; color:#e65100; }
-
   .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; }
   .form-group { margin-bottom:15px; }
   .form-group label { display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--text); }
-  .form-group input, .form-group select, .form-group textarea {
-    width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;
-  }
+  .form-group input, .form-group select, .form-group textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem; }
   .form-group input:focus, .form-group select:focus { outline:none; border-color:var(--primary); }
   .form-group small { color:var(--gray); font-size:0.8rem; display:block; margin-top:4px; }
-  
-  .file-upload {
-    border:2px dashed var(--primary); border-radius:8px; padding:20px;
-    text-align:center; background:var(--light); cursor:pointer; transition:.3s;
-  }
+  .file-upload { border:2px dashed var(--primary); border-radius:8px; padding:20px; text-align:center; background:var(--light); cursor:pointer; transition:.3s; }
   .file-upload:hover { background:#e8f5e9; }
   .file-upload input[type="file"] { display:none; }
   .upload-icon { font-size:2.5rem; color:var(--primary); margin-bottom:10px; }
   .file-list { display:flex; flex-wrap:wrap; gap:10px; margin-top:15px; }
-  .file-item {
-    position:relative; width:100px; height:100px; border-radius:8px; overflow:hidden;
-    border:2px solid #ddd; cursor:pointer; transition:.3s;
-  }
+  .file-item { position:relative; width:100px; height:100px; border-radius:8px; overflow:hidden; border:2px solid #ddd; cursor:pointer; transition:.3s; }
   .file-item:hover { border-color:var(--primary); transform:scale(1.05); }
   .file-item img { width:100%; height:100%; object-fit:cover; }
-  .file-item .remove-file {
-    position:absolute; top:2px; right:2px; background:#e53935; color:white;
-    width:20px; height:20px; border-radius:50%; display:flex; align-items:center;
-    justify-content:center; font-size:0.7rem; cursor:pointer;
-  }
-  .file-item.compressing { opacity:0.6; }
-  .file-item.compressing::after {
-    content:'⏳'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    font-size:1.5rem;
-  }
-
-  .photo-gallery { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
-  .photo-item {
-    width:80px; height:80px; border-radius:6px; overflow:hidden;
-    border:2px solid #ddd; cursor:pointer; transition:.3s;
-  }
-  .photo-item:hover { border-color:var(--primary); transform:scale(1.1); }
+  .file-item .remove-file { position:absolute; top:2px; right:2px; background:#e53935; color:white; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem; cursor:pointer; }
+  .photo-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:15px; margin-top:10px; }
+  .photo-item { position:relative; border-radius:8px; overflow:hidden; border:3px solid #ddd; cursor:pointer; transition:.3s; aspect-ratio:1; }
+  .photo-item:hover { border-color:var(--primary); transform:scale(1.05); }
   .photo-item img { width:100%; height:100%; object-fit:cover; }
-
-  .btn {
-    background:var(--primary); color:white; padding:10px 20px; border:none;
-    border-radius:6px; cursor:pointer; font-weight:600; transition:.3s; font-size:0.95rem;
-  }
+  .photo-item .photo-info { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); color:white; padding:5px; font-size:0.75rem; text-align:center; }
+  .btn { background:var(--primary); color:white; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; font-weight:600; transition:.3s; font-size:0.95rem; }
   .btn:hover { background:var(--primary-dark); }
   .btn:disabled { opacity:0.6; cursor:not-allowed; }
   .btn-secondary { background:var(--gray); }
@@ -151,89 +91,55 @@
   .btn-warning { background:var(--accent); color:var(--primary-dark); }
   .btn-group { display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; }
   .btn-small { padding:6px 12px; font-size:0.85rem; }
-
-  .login-container {
-    min-height:100vh; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark)); padding:20px;
-  }
-  .login-box {
-    background:white; padding:40px; border-radius:15px; width:100%; max-width:420px;
-    box-shadow:0 10px 40px rgba(0,0,0,0.2); text-align:center;
-  }
+  .login-container { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); padding:20px; }
+  .login-box { background:white; padding:40px; border-radius:15px; width:100%; max-width:420px; box-shadow:0 10px 40px rgba(0,0,0,0.2); text-align:center; }
   .login-box h2 { color:var(--primary); margin-bottom:10px; }
   .login-box .subtitle { color:var(--gray); margin-bottom:25px; font-size:0.9rem; }
   .login-box .form-group { margin-bottom:15px; text-align:left; }
   .login-box .btn { width:100%; padding:12px; margin-bottom:10px; }
-  .login-info { margin-top:15px; padding:12px; background:#e3f2fd; border-radius:6px; font-size:0.85rem; color:#1565c0; }
   .login-error { margin-top:10px; padding:10px; background:#ffebee; border-radius:6px; font-size:0.85rem; color:#c62828; display:none; }
-  .tab-switch { display:flex; gap:10px; margin-bottom:20px; }
-  .tab-switch button {
-    flex:1; padding:10px; border:2px solid var(--primary); background:white;
-    color:var(--primary); border-radius:6px; cursor:pointer; font-weight:600; transition:.3s;
-  }
-  .tab-switch button.active { background:var(--primary); color:white; }
-
-  .modal {
-    display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-    background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;
-    padding:20px;
-  }
+  .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px; }
   .modal.active { display:flex; }
-  .modal-content {
-    background:white; border-radius:15px; max-width:800px; width:100%;
-    max-height:90vh; overflow-y:auto; padding:30px; position:relative;
-  }
-  .modal-close {
-    position:absolute; top:15px; right:20px; font-size:1.5rem;
-    cursor:pointer; color:var(--gray); background:none; border:none;
-  }
+  .modal-content { background:white; border-radius:15px; max-width:800px; width:100%; max-height:90vh; overflow-y:auto; padding:30px; position:relative; }
+  .modal-close { position:absolute; top:15px; right:20px; font-size:1.5rem; cursor:pointer; color:var(--gray); background:none; border:none; }
   .modal-close:hover { color:var(--text); }
   .modal img.full-image { width:100%; border-radius:8px; margin-top:10px; }
-
   .hidden { display:none!important; }
-
-  .toast {
-    position:fixed; bottom:20px; right:20px; background:var(--primary); color:white;
-    padding:15px 25px; border-radius:8px; box-shadow:0 5px 20px rgba(0,0,0,0.2);
-    z-index:1100; animation:slideIn .3s; max-width:90%;
-  }
+  .toast { position:fixed; bottom:20px; right:20px; background:var(--primary); color:white; padding:15px 25px; border-radius:8px; box-shadow:0 5px 20px rgba(0,0,0,0.2); z-index:1100; animation:slideIn .3s; max-width:90%; }
   .toast.error { background:#e53935; }
   @keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
-
-  .footer {
-    background:var(--primary-dark); color:white; padding:30px 20px; text-align:center;
-  }
+  .footer { background:var(--primary-dark); color:white; padding:30px 20px; text-align:center; }
   .footer-logo { display:flex; align-items:center; justify-content:center; gap:15px; margin-bottom:15px; flex-wrap:wrap; }
   .footer p { opacity:0.8; font-size:0.9rem; margin:5px 0; }
-
-  .loading-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    background:rgba(255,255,255,0.85); display:flex; align-items:center;
-    justify-content:center; z-index:1050; flex-direction:column; gap:15px;
-  }
+  .loading-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; z-index:1050; flex-direction:column; gap:15px; }
   .loading-overlay.hidden { display:none; }
-  .spinner {
-    width:50px; height:50px; border:4px solid var(--light);
-    border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;
-  }
-
-  .info-box {
-    background:#e3f2fd; border-left:4px solid #1976d2; padding:15px;
-    border-radius:6px; margin:15px 0; font-size:0.9rem;
-  }
+  .spinner { width:50px; height:50px; border:4px solid var(--light); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+  .info-box { background:#e3f2fd; border-left:4px solid #1976d2; padding:15px; border-radius:6px; margin:15px 0; font-size:0.9rem; }
   .info-box.warning { background:#fff3e0; border-left-color:#ffb300; }
-
+  #map { height: 500px; width: 100%; border-radius: 8px; border: 1px solid #ddd; z-index: 1; }
+  .map-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; border-radius: 8px; }
+  .map-overlay-content { background: white; padding: 30px; border-radius: 12px; text-align: center; max-width: 300px; }
+  .map-overlay-content h3 { color: var(--primary); margin-bottom: 10px; }
+  .map-overlay-content p { color: var(--gray); margin-bottom: 15px; }
+  .report-filter { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin-bottom:20px; padding:20px; background:#f5f7fa; border-radius:8px; }
+  .report-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px; margin-bottom:25px; }
+  .summary-card { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; padding:20px; border-radius:10px; text-align:center; }
+  .summary-card.orange { background:linear-gradient(135deg,#ff9800,#f57c00); }
+  .summary-card.blue { background:linear-gradient(135deg,#2196f3,#1976d2); }
+  .summary-card.red { background:linear-gradient(135deg,#f44336,#d32f2f); }
+  .summary-label { font-size:0.85rem; opacity:0.9; margin-bottom:5px; }
+  .summary-value { font-size:1.8rem; font-weight:bold; }
+  .role-badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:8px; }
+  .role-admin { background:#e53935; color:white; }
+  .role-user { background:#2196f3; color:white; }
+  .role-driver { background:#ff9800; color:white; }
   @media (max-width:768px) {
     .navbar { padding:10px 15px; }
     .logo-img { width:45px; height:45px; }
     .logo-text .brand { font-size:0.95rem; }
     .logo-text .sub { font-size:0.65rem; }
     .menu-toggle { display:block; }
-    .nav-links {
-      position:absolute; top:100%; right:0; background:var(--primary-dark);
-      flex-direction:column; width:220px; padding:15px; gap:10px;
-      display:none; box-shadow:0 5px 15px rgba(0,0,0,0.2);
-    }
+    .nav-links { position:absolute; top:100%; right:0; background:var(--primary-dark); flex-direction:column; width:220px; padding:15px; gap:10px; display:none; box-shadow:0 5px 15px rgba(0,0,0,0.2); }
     .nav-links.active { display:flex; }
     .hero { padding:40px 20px; }
     .hero h1 { font-size:1.6rem; }
@@ -243,6 +149,7 @@
     th, td { padding:8px; font-size:0.8rem; }
     .modal-content { padding:20px; }
     .logo-large { width:160px; height:160px; }
+    #map { height: 400px; }
   }
 </style>
 </head>
@@ -276,9 +183,11 @@
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
     <div class="nav-links" id="navLinks">
       <a href="#dashboard">Dashboard</a>
+      <a href="#trackingPublic">🗺️ Live Tracking</a>
       <a href="#statistik">Statistik</a>
       <a href="#tentang">Tentang</a>
-      <button class="btn-login" onclick="showLogin()">🔐 Login</button>
+      <button class="btn-login" onclick="showLogin()"> Login</button>
+      <a href="#driver" onclick="showDriverTracking()">🚛 Driver</a>
     </div>
   </nav>
 
@@ -312,6 +221,21 @@
       </div>
     </div>
 
+    <div id="trackingPublic" class="section" style="position:relative;">
+      <h2>️ Live Tracking Armada</h2>
+      <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
+      <div style="position:relative;">
+        <div id="mapPublic"></div>
+        <div class="map-overlay" id="mapOverlay">
+          <div class="map-overlay-content">
+            <h3>🔐 Perlu Login</h3>
+            <p>Silakan login untuk melihat live tracking secara penuh</p>
+            <button class="btn" onclick="showLogin()">Login Sekarang</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="statistik" class="section">
       <h2>📈 Statistik Pengambilan Sampah</h2>
       <div class="chart-container"><canvas id="pubChart"></canvas></div>
@@ -337,18 +261,6 @@
         </div>
       </div>
       <p><b>CV REZEKI AMANAH JAYA Group</b> adalah mitra terpercaya dalam pengelolaan sampah berkelanjutan. Kami berkomitmen memisahkan sampah organik untuk diolah dan meminimalkan residu ke TPA.</p>
-      <div class="stats-grid" style="margin-top:20px;">
-        <div class="stat-card">
-          <div class="stat-label">👥 Klien</div>
-          <div style="font-size:1.1rem;font-weight:bold;">The Hood</div>
-          <div style="font-size:0.85rem;color:var(--gray);">Summarecon Serpong - BSD City</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">🌐 Layanan</div>
-          <div style="font-size:1.1rem;font-weight:bold;">Waste Management</div>
-          <div style="font-size:0.85rem;color:var(--gray);">Pengambilan & Pengolahan</div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -372,15 +284,10 @@
       <h2>🔐 EcoTRACK</h2>
       <p class="subtitle">CV REZEKI AMANAH JAYA Group</p>
       
-      <div class="tab-switch">
-        <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
-        <button id="tabRegister" onclick="switchAuthTab('register')">Register</button>
-      </div>
-
       <form id="loginForm" onsubmit="doFirebaseLogin(event)">
         <div class="form-group">
           <label>Email</label>
-          <input type="email" id="loginEmail" required placeholder="admin@ecotrack.id">
+          <input type="email" id="loginEmail" required placeholder="email@ecotrack.id">
         </div>
         <div class="form-group">
           <label>Password</label>
@@ -389,31 +296,7 @@
         <button type="submit" class="btn">Masuk</button>
       </form>
 
-      <form id="registerForm" class="hidden" onsubmit="doFirebaseRegister(event)">
-        <div class="form-group">
-          <label>Nama Lengkap</label>
-          <input type="text" id="regName" required placeholder="Nama Anda">
-        </div>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="regEmail" required placeholder="email@ecotrack.id">
-        </div>
-        <div class="form-group">
-          <label>Password (min 6 karakter)</label>
-          <input type="password" id="regPassword" required minlength="6" placeholder="••••••••">
-        </div>
-        <div class="form-group">
-          <label>Kode Registrasi</label>
-          <input type="text" id="regCode" required placeholder="Masukkan kode">
-          <small>Hubungi admin untuk mendapatkan kode registrasi</small>
-        </div>
-        <button type="submit" class="btn">Daftar</button>
-      </form>
-
       <div class="login-error" id="loginError"></div>
-      <div class="login-info">
-        💡 <b>Info:</b> Gunakan kode registrasi <b>RAJ2025</b> untuk daftar akun pertama.
-      </div>
       <div style="text-align:center;margin-top:15px;">
         <a href="#" onclick="showPublic()" style="color:var(--primary);">← Kembali ke Dashboard</a>
       </div>
@@ -433,12 +316,14 @@
     </div>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
     <div class="nav-links" id="adminNavLinks">
-      <a href="#inputData">Input Data</a>
-      <a href="#dataList">Data</a>
-      <a href="#adminChart">Grafik</a>
+      <a href="#inputData" onclick="showSection('inputData')">Input Data</a>
+      <a href="#dataList" onclick="showSection('dataList')">Data</a>
+      <a href="#reportSection" onclick="showSection('reportSection')">📊 Laporan</a>
+      <a href="#trackingSection" onclick="showSection('trackingSection'); initMap('mapAdmin');">🗺️ Live Tracking</a>
       <div class="user-info">
         <span>👤</span>
         <span id="navUserEmail">-</span>
+        <span class="role-badge role-admin">ADMIN</span>
       </div>
       <button onclick="doFirebaseLogout()">🚪 Logout</button>
     </div>
@@ -466,11 +351,9 @@
 
     <div id="inputData" class="section">
       <h2>➕ Input Data Pengambilan Sampah</h2>
-      
       <div class="info-box warning">
         💡 <b>Tips:</b> Foto akan otomatis dikompresi untuk menghemat penyimpanan. Maksimal 5 foto per data.
       </div>
-
       <form onsubmit="addData(event)">
         <div class="form-grid">
           <div class="form-group">
@@ -493,43 +376,37 @@
           </div>
           <div class="form-group">
             <label>Berat Diolah (kg)</label>
-            <input type="number" id="fDiolah" step="0.1" min="0" placeholder="Kosongkan jika belum diolah">
-            <small>Opsional - bisa diisi setelah pengolahan</small>
+            <input type="number" id="fDiolah" step="0.1" min="0" placeholder="Opsional">
           </div>
           <div class="form-group">
             <label>Berat Residu (kg)</label>
-            <input type="number" id="fResidu" step="0.1" min="0" placeholder="Kosongkan jika belum ada">
-            <small>Opsional - bisa diisi setelah pengolahan</small>
+            <input type="number" id="fResidu" step="0.1" min="0" placeholder="Opsional">
           </div>
           <div class="form-group">
             <label>Petugas *</label>
             <input type="text" id="fPetugas" required>
           </div>
         </div>
-        
         <div class="form-group">
           <label>Catatan</label>
           <textarea id="fCatatan" rows="2" placeholder="Informasi tambahan..."></textarea>
         </div>
-
         <div class="form-group">
-          <label>Foto Dokumentasi (Multiple - Max 5)</label>
+          <label>Foto Dokumentasi (Max 5)</label>
           <label class="file-upload" for="fFoto">
             <div class="upload-icon">📷</div>
-            <div>Klik untuk upload foto (bisa lebih dari 1)</div>
+            <div>Klik untuk upload foto</div>
             <input type="file" id="fFoto" multiple accept="image/*" onchange="handleFileSelect(event)">
           </label>
           <div class="file-list" id="fileList"></div>
-          <small style="color:var(--gray);">📦 Foto otomatis dikompresi & disimpan di Firestore (tanpa Storage)</small>
         </div>
-
         <div class="btn-group">
           <button type="submit" class="btn" id="btnSave">💾 Simpan Data</button>
         </div>
       </form>
     </div>
 
-    <div id="dataList" class="section">
+    <div id="dataList" class="section hidden">
       <h2>📋 Daftar Data Pengambilan</h2>
       <div class="table-wrapper">
         <table>
@@ -541,15 +418,391 @@
       </div>
     </div>
 
-    <div id="adminChart" class="section">
-      <h2>📊 Grafik Pengolahan Sampah</h2>
-      <div class="chart-container"><canvas id="admChart"></canvas></div>
+    <div id="reportSection" class="section hidden">
+      <h2>📊 Laporan Pengambilan Sampah</h2>
+      
+      <div class="report-filter">
+        <div class="form-group">
+          <label>Periode Laporan</label>
+          <select id="reportPeriod" onchange="toggleCustomDate()">
+            <option value="daily">Harian</option>
+            <option value="weekly">Mingguan</option>
+            <option value="monthly">Bulanan</option>
+            <option value="custom">Custom Tanggal</option>
+          </select>
+        </div>
+        <div class="form-group" id="dailyDateGroup">
+          <label>Pilih Tanggal</label>
+          <input type="date" id="reportDate" onchange="generateReport()">
+        </div>
+        <div class="form-group hidden" id="weeklyDateGroup">
+          <label>Pilih Minggu (Tanggal)</label>
+          <input type="date" id="reportWeekDate" onchange="generateReport()">
+        </div>
+        <div class="form-group hidden" id="monthlyDateGroup">
+          <label>Pilih Bulan</label>
+          <input type="month" id="reportMonth" onchange="generateReport()">
+        </div>
+        <div class="form-group hidden" id="customDateGroup">
+          <label>Dari Tanggal</label>
+          <input type="date" id="reportDateFrom" onchange="generateReport()">
+        </div>
+        <div class="form-group hidden" id="customDateGroup2">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="reportDateTo" onchange="generateReport()">
+        </div>
+        <div class="form-group" style="display:flex;align-items:end;">
+          <button class="btn" onclick="generateReport()">🔄 Generate Laporan</button>
+        </div>
+      </div>
+
+      <div class="report-summary" id="reportSummary">
+        <div class="summary-card">
+          <div class="summary-label">Total Pengambilan</div>
+          <div class="summary-value" id="rptTotalPickup">0</div>
+        </div>
+        <div class="summary-card orange">
+          <div class="summary-label">Total Berat (kg)</div>
+          <div class="summary-value" id="rptTotalWeight">0</div>
+        </div>
+        <div class="summary-card blue">
+          <div class="summary-label">Total Diolah (kg)</div>
+          <div class="summary-value" id="rptTotalProcessed">0</div>
+        </div>
+        <div class="summary-card red">
+          <div class="summary-label">Total Residu (kg)</div>
+          <div class="summary-value" id="rptTotalResidue">0</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:25px;">
+        <h3 style="margin-bottom:15px;color:var(--primary);">📈 Tren Pengolahan</h3>
+        <div class="chart-container"><canvas id="reportChart"></canvas></div>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom:15px;color:var(--primary);">📋 Detail Data</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Tanggal</th><th>Jenis</th><th>Berat (kg)</th><th>Diolah (kg)</th><th>Residu (kg)</th><th>Petugas</th>
+            </tr></thead>
+            <tbody id="reportTableBody">
+              <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Pilih periode dan klik Generate Laporan</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="trackingSection" class="section hidden">
+      <h2>🗺️ Live Tracking Armada</h2>
+      <div id="mapAdmin"></div>
+      <div class="table-wrapper" style="margin-top:20px;">
+        <table>
+          <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
+          <tbody id="armadaTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Menunggu data lokasi...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p>
+    <p style="font-size:0.8rem;">The Hood, Summarecon Serpong - BSD City</p>
+  </div>
+</div>
+
+<!-- USER VIEW -->
+<div id="userView" class="hidden">
+  <nav class="navbar">
+    <div class="logo">
+      <img src="logo.png" alt="RAJ" class="logo-img" onerror="this.style.display='none'">
+      <div class="logo-text">
+        <span class="brand">User - EcoTRACK</span>
+        <span class="sub" id="userUserName">Loading...</span>
+      </div>
+    </div>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <div class="nav-links" id="userNavLinks">
+      <a href="#userDashboard" onclick="showUserSection('userDashboard')">📊 Dashboard</a>
+      <a href="#userList" onclick="showUserSection('userList')">📋 Data</a>
+      <a href="#userReport" onclick="showUserSection('userReport')">📊 Laporan</a>
+      <a href="#userTracking" onclick="showUserSection('userTracking'); initMap('mapUser');">🗺️ Live Tracking</a>
+      <div class="user-info">
+        <span>👤</span>
+        <span id="userNavEmail">-</span>
+        <span class="role-badge role-user">USER</span>
+      </div>
+      <button onclick="doFirebaseLogout()">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card"><span class="stat-icon">🚛</span>
+        <div class="stat-label">Total Pengambilan</div>
+        <div class="stat-value" id="usrTotalPickup">0</div>
+      </div>
+      <div class="stat-card orange"><span class="stat-icon">⚖️</span>
+        <div class="stat-label">Total Sampah (kg)</div>
+        <div class="stat-value" id="usrTotalWeight">0</div>
+      </div>
+      <div class="stat-card blue"><span class="stat-icon">♻️</span>
+        <div class="stat-label">Sampah Diolah (kg)</div>
+        <div class="stat-value" id="usrProcessed">0</div>
+      </div>
+      <div class="stat-card red"><span class="stat-icon">🗑️</span>
+        <div class="stat-label">Sampah Residu (kg)</div>
+        <div class="stat-value" id="usrResidue">0</div>
+      </div>
+    </div>
+
+    <div id="userDashboard" class="section">
+      <h2>📊 Dashboard</h2>
+      <div class="chart-container"><canvas id="usrChart"></canvas></div>
+    </div>
+
+    <div id="userList" class="section hidden">
+      <h2>📋 Daftar Data Pengambilan</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr>
+            <th>Tanggal</th><th>Jenis</th><th>Berat</th><th>Diolah</th><th>Residu</th><th>Petugas</th><th>Foto</th>
+          </tr></thead>
+          <tbody id="usrTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="userReport" class="section hidden">
+      <h2>📊 Laporan Pengambilan Sampah</h2>
+      
+      <div class="report-filter">
+        <div class="form-group">
+          <label>Periode Laporan</label>
+          <select id="userReportPeriod" onchange="toggleUserCustomDate()">
+            <option value="daily">Harian</option>
+            <option value="weekly">Mingguan</option>
+            <option value="monthly">Bulanan</option>
+            <option value="custom">Custom Tanggal</option>
+          </select>
+        </div>
+        <div class="form-group" id="userDailyDateGroup">
+          <label>Pilih Tanggal</label>
+          <input type="date" id="userReportDate" onchange="generateUserReport()">
+        </div>
+        <div class="form-group hidden" id="userWeeklyDateGroup">
+          <label>Pilih Minggu (Tanggal)</label>
+          <input type="date" id="userReportWeekDate" onchange="generateUserReport()">
+        </div>
+        <div class="form-group hidden" id="userMonthlyDateGroup">
+          <label>Pilih Bulan</label>
+          <input type="month" id="userReportMonth" onchange="generateUserReport()">
+        </div>
+        <div class="form-group hidden" id="userCustomDateGroup">
+          <label>Dari Tanggal</label>
+          <input type="date" id="userReportDateFrom" onchange="generateUserReport()">
+        </div>
+        <div class="form-group hidden" id="userCustomDateGroup2">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="userReportDateTo" onchange="generateUserReport()">
+        </div>
+        <div class="form-group" style="display:flex;align-items:end;">
+          <button class="btn" onclick="generateUserReport()">🔄 Generate Laporan</button>
+        </div>
+      </div>
+
+      <div class="report-summary">
+        <div class="summary-card">
+          <div class="summary-label">Total Pengambilan</div>
+          <div class="summary-value" id="usrRptTotalPickup">0</div>
+        </div>
+        <div class="summary-card orange">
+          <div class="summary-label">Total Berat (kg)</div>
+          <div class="summary-value" id="usrRptTotalWeight">0</div>
+        </div>
+        <div class="summary-card blue">
+          <div class="summary-label">Total Diolah (kg)</div>
+          <div class="summary-value" id="usrRptTotalProcessed">0</div>
+        </div>
+        <div class="summary-card red">
+          <div class="summary-label">Total Residu (kg)</div>
+          <div class="summary-value" id="usrRptTotalResidue">0</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:25px;">
+        <h3 style="margin-bottom:15px;color:var(--primary);">📈 Tren Pengolahan</h3>
+        <div class="chart-container"><canvas id="userReportChart"></canvas></div>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom:15px;color:var(--primary);">📋 Detail Data</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Tanggal</th><th>Jenis</th><th>Berat (kg)</th><th>Diolah (kg)</th><th>Residu (kg)</th><th>Petugas</th>
+            </tr></thead>
+            <tbody id="userReportTableBody">
+              <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Pilih periode dan klik Generate Laporan</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="userTracking" class="section hidden">
+      <h2>🗺️ Live Tracking Armada</h2>
+      <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
+      <div id="mapUser"></div>
+      <div class="table-wrapper" style="margin-top:20px;">
+        <table>
+          <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
+          <tbody id="userArmadaTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Menunggu data lokasi...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <div class="footer">
     <p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p>
     <p style="font-size:0.8rem;">The Hood, Summarecon Serpong - BSD City</p>
+  </div>
+</div>
+
+<!-- DRIVER VIEW -->
+<div id="driverView" class="hidden">
+  <nav class="navbar">
+    <div class="logo">
+      <img src="logo.png" alt="RAJ" class="logo-img" onerror="this.style.display='none'">
+      <div class="logo-text">
+        <span class="brand">Driver - EcoTRACK</span>
+        <span class="sub" id="driverUserName">Loading...</span>
+      </div>
+    </div>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <div class="nav-links" id="driverNavLinks">
+      <a href="#driverInput" onclick="showDriverSection('driverInput')">➕ Input Data</a>
+      <a href="#driverTracking" onclick="showDriverSection('driverTracking'); initMap('mapDriver');">🗺️ Live Tracking</a>
+      <div class="user-info">
+        <span>👤</span>
+        <span id="driverNavEmail">-</span>
+        <span class="role-badge role-driver">DRIVER</span>
+      </div>
+      <button onclick="doFirebaseLogout()">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div id="driverInput" class="section">
+      <h2>➕ Input Data Pengambilan Sampah</h2>
+      <div class="info-box warning">
+        💡 <b>Tips:</b> Foto akan otomatis dikompresi. Maksimal 5 foto per data.
+      </div>
+      <form onsubmit="addData(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tanggal *</label>
+            <input type="date" id="dTanggal" required>
+          </div>
+          <div class="form-group">
+            <label>Jenis Sampah *</label>
+            <select id="dJenis" required>
+              <option value="">-- Pilih --</option>
+              <option>Organik</option>
+              <option>Anorganik</option>
+              <option>B3</option>
+              <option>Campuran</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Total Berat (kg) *</label>
+            <input type="number" id="dBerat" step="0.1" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Berat Diolah (kg)</label>
+            <input type="number" id="dDiolah" step="0.1" min="0" placeholder="Opsional">
+          </div>
+          <div class="form-group">
+            <label>Berat Residu (kg)</label>
+            <input type="number" id="dResidu" step="0.1" min="0" placeholder="Opsional">
+          </div>
+          <div class="form-group">
+            <label>Petugas *</label>
+            <input type="text" id="dPetugas" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Catatan</label>
+          <textarea id="dCatatan" rows="2" placeholder="Informasi tambahan..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Foto Dokumentasi (Max 5)</label>
+          <label class="file-upload" for="dFoto">
+            <div class="upload-icon">📷</div>
+            <div>Klik untuk upload foto</div>
+            <input type="file" id="dFoto" multiple accept="image/*" onchange="handleFileSelect(event)">
+          </label>
+          <div class="file-list" id="dFileList"></div>
+        </div>
+        <div class="btn-group">
+          <button type="submit" class="btn" id="dBtnSave">💾 Simpan Data</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="driverTracking" class="section hidden">
+      <h2>🗺️ Live Tracking Armada</h2>
+      <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
+      <div id="mapDriver"></div>
+      <div class="table-wrapper" style="margin-top:20px;">
+        <table>
+          <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
+          <tbody id="driverArmadaTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Menunggu data lokasi...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p>
+    <p style="font-size:0.8rem;">The Hood, Summarecon Serpong - BSD City</p>
+  </div>
+</div>
+
+<!-- DRIVER TRACKING VIEW (Public) -->
+<div id="driverTrackingView" class="hidden">
+  <div class="login-container">
+    <div class="login-box">
+      <img src="logo.png" alt="RAJ Logo" class="logo-large" style="margin:0 auto 20px;display:block;" onerror="this.style.display='none'">
+      <h2>🚛 Driver Tracking</h2>
+      <p class="subtitle">Kirim Lokasi Real-time ke Kantor</p>
+      
+      <form id="driverForm" onsubmit="startDriverTracking(e)">
+        <div class="form-group">
+          <label>Nama Driver</label>
+          <input type="text" id="driverName" required placeholder="Contoh: Budi">
+        </div>
+        <div class="form-group">
+          <label>Nomor/Nama Armada</label>
+          <input type="text" id="vehicleName" required placeholder="Contoh: Truk B 1234 CD">
+        </div>
+        <button type="submit" class="btn" id="btnStartTrack">📡 Mulai Kirim Lokasi</button>
+        <button type="button" class="btn btn-danger" onclick="stopDriverTracking()" id="btnStopTrack" style="display:none;">️ Berhenti</button>
+      </form>
+      <div id="driverStatus" style="margin-top:15px; font-size:0.9rem; color:var(--gray);"></div>
+      <div style="text-align:center;margin-top:15px;">
+        <a href="#" onclick="showPublic()" style="color:var(--primary);">← Kembali ke Home</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -568,10 +821,7 @@
         <div class="form-group">
           <label>Jenis Sampah *</label>
           <select id="eJenis" required>
-            <option>Organik</option>
-            <option>Anorganik</option>
-            <option>B3</option>
-            <option>Campuran</option>
+            <option>Organik</option><option>Anorganik</option><option>B3</option><option>Campuran</option>
           </select>
         </div>
         <div class="form-group">
@@ -591,17 +841,14 @@
           <input type="text" id="ePetugas" required>
         </div>
       </div>
-      
       <div class="form-group">
         <label>Catatan</label>
         <textarea id="eCatatan" rows="2"></textarea>
       </div>
-
       <div class="form-group">
         <label>Foto Existing</label>
         <div class="photo-gallery" id="eExistingPhotos"></div>
       </div>
-
       <div class="form-group">
         <label>Tambah Foto Baru</label>
         <label class="file-upload" for="eFoto">
@@ -611,7 +858,6 @@
         </label>
         <div class="file-list" id="eFileList"></div>
       </div>
-
       <div class="btn-group">
         <button type="submit" class="btn">💾 Update Data</button>
         <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
@@ -620,11 +866,11 @@
   </div>
 </div>
 
-<!-- PHOTO VIEWER -->
+<!-- PHOTO VIEWER MODAL -->
 <div id="photoModal" class="modal" onclick="closePhotoModal()">
   <div class="modal-content" style="max-width:900px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closePhotoModal()">×</button>
-    <h2>📸 Galeri Foto</h2>
+    <h2> Galeri Foto</h2>
     <div id="photoViewer"></div>
   </div>
 </div>
@@ -639,15 +885,9 @@ const firebaseConfig = {
   projectId: "ecotrack-184c2",
   storageBucket: "ecotrack-184c2.firebasestorage.app",
   messagingSenderId: "703447241523",
-  appId: "1:703447241523:web:0841c9817537b0aa82a446",
-  measurementId: "G-4ZTDBCGGRW"
+  appId: "1:703447241523:web:0841c9817537b0aa82a446"
 };
 
-const REGISTRATION_CODE = "RAJ2025";
-
-// ============================================================
-// INIT FIREBASE (tanpa Storage)
-// ============================================================
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -657,48 +897,15 @@ const db = firebase.firestore();
 // ============================================================
 let dataSampah = [];
 let currentUser = null;
-let pubChart, admChart;
-let selectedFiles = []; // {base64, name}
+let currentUserRole = 'user';
+let pubChart, admChart, reportChart, usrChart, userReportChart;
+let selectedFiles = []; 
 let editFiles = [];
-let editExistingPhotos = []; // array base64
+let editExistingPhotos = []; 
 let unsubscribeData = null;
-
-// ============================================================
-// IMAGE COMPRESSION (untuk hemat Firestore)
-// ============================================================
-function compressImage(file, maxWidth = 800, quality = 0.7) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        // Resize jika lebih besar dari maxWidth
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convert ke JPEG base64
-        const base64 = canvas.toDataURL('image/jpeg', quality);
-        resolve(base64);
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+let maps = {};
+let markers = {};
+let watchId = null;
 
 // ============================================================
 // SPLASH & INIT
@@ -712,6 +919,22 @@ window.addEventListener('load', () => {
 
 function initApp() {
   document.getElementById('fTanggal').valueAsDate = new Date();
+  document.getElementById('dTanggal').valueAsDate = new Date();
+  document.getElementById('reportDate').valueAsDate = new Date();
+  document.getElementById('reportWeekDate').valueAsDate = new Date();
+  document.getElementById('userReportDate').valueAsDate = new Date();
+  document.getElementById('userReportWeekDate').valueAsDate = new Date();
+  
+  const today = new Date();
+  const monthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+  document.getElementById('reportMonth').value = monthStr;
+  document.getElementById('userReportMonth').value = monthStr;
+  
+  const weekAgo = new Date(today.setDate(today.getDate() - 7));
+  document.getElementById('reportDateFrom').valueAsDate = weekAgo;
+  document.getElementById('reportDateTo').valueAsDate = new Date();
+  document.getElementById('userReportDateFrom').valueAsDate = weekAgo;
+  document.getElementById('userReportDateTo').valueAsDate = new Date();
   
   auth.onAuthStateChanged(user => {
     currentUser = user;
@@ -719,21 +942,40 @@ function initApp() {
       db.collection('users').doc(user.uid).get().then(doc => {
         if (doc.exists) {
           const userData = doc.data();
-          document.getElementById('adminUserName').textContent = userData.nama || user.email;
-          document.getElementById('navUserEmail').textContent = user.email;
+          currentUserRole = userData.role || 'user';
+          
+          if (currentUserRole === 'admin') {
+            document.getElementById('adminUserName').textContent = userData.nama || user.email;
+            document.getElementById('navUserEmail').textContent = user.email;
+            showAdmin();
+            subscribeToData();
+          } else if (currentUserRole === 'driver') {
+            document.getElementById('driverUserName').textContent = userData.nama || user.email;
+            document.getElementById('driverNavEmail').textContent = user.email;
+            showDriverView();
+            subscribeToData();
+          } else {
+            document.getElementById('userUserName').textContent = userData.nama || user.email;
+            document.getElementById('userNavEmail').textContent = user.email;
+            showUserView();
+            subscribeToData();
+          }
         } else {
-          document.getElementById('adminUserName').textContent = user.email;
-          document.getElementById('navUserEmail').textContent = user.email;
+          currentUserRole = 'user';
+          document.getElementById('userUserName').textContent = user.email;
+          document.getElementById('userNavEmail').textContent = user.email;
+          showUserView();
+          subscribeToData();
         }
       }).catch(() => {
-        document.getElementById('adminUserName').textContent = user.email;
-        document.getElementById('navUserEmail').textContent = user.email;
+        currentUserRole = 'user';
+        showUserView();
+        subscribeToData();
       });
-      showAdmin();
-      subscribeToData();
     } else {
       if (unsubscribeData) unsubscribeData();
       dataSampah = [];
+      currentUserRole = 'user';
       showPublic();
     }
   });
@@ -743,46 +985,93 @@ function initApp() {
 // NAVIGATION
 // ============================================================
 function showPublic() {
-  document.getElementById('publicView').classList.remove('hidden');
-  document.getElementById('loginView').classList.add('hidden');
-  document.getElementById('adminView').classList.add('hidden');
+  hideAllViews(); 
+  document.getElementById('publicView').classList.remove('hidden'); 
   renderPublic();
+  initMap('mapPublic');
 }
+
 function showLogin() {
-  document.getElementById('publicView').classList.add('hidden');
-  document.getElementById('loginView').classList.remove('hidden');
-  document.getElementById('adminView').classList.add('hidden');
-  document.getElementById('loginError').style.display = 'none';
+  hideAllViews(); 
+  document.getElementById('loginView').classList.remove('hidden'); 
+  document.getElementById('loginError').style.display = 'none'; 
   closeMenu();
 }
+
 function showAdmin() {
-  document.getElementById('publicView').classList.add('hidden');
-  document.getElementById('loginView').classList.add('hidden');
-  document.getElementById('adminView').classList.remove('hidden');
+  hideAllViews(); 
+  document.getElementById('adminView').classList.remove('hidden'); 
+  closeMenu(); 
+  showSection('inputData');
+}
+
+function showUserView() {
+  hideAllViews();
+  document.getElementById('userView').classList.remove('hidden');
+  closeMenu();
+  showUserSection('userDashboard');
+}
+
+function showDriverView() {
+  hideAllViews();
+  document.getElementById('driverView').classList.remove('hidden');
+  closeMenu();
+  showDriverSection('driverInput');
+}
+
+function showDriverTracking() {
+  hideAllViews(); 
+  document.getElementById('driverTrackingView').classList.remove('hidden'); 
   closeMenu();
 }
+
+function hideAllViews() {
+  ['publicView', 'loginView', 'adminView', 'userView', 'driverView', 'driverTrackingView'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+}
+
+function showSection(sectionId) {
+  ['inputData', 'dataList', 'reportSection', 'trackingSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('hidden');
+  });
+  document.getElementById(sectionId).classList.remove('hidden');
+  if(sectionId === 'dataList') renderAdmin();
+  if(sectionId === 'reportSection') generateReport();
+}
+
+function showUserSection(sectionId) {
+  ['userDashboard', 'userList', 'userReport', 'userTracking'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('hidden');
+  });
+  document.getElementById(sectionId).classList.remove('hidden');
+  if(sectionId === 'userDashboard') renderUserDashboard();
+  if(sectionId === 'userList') renderUserList();
+  if(sectionId === 'userReport') generateUserReport();
+}
+
+function showDriverSection(sectionId) {
+  ['driverInput', 'driverTracking'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('hidden');
+  });
+  document.getElementById(sectionId).classList.remove('hidden');
+}
+
 function toggleMenu() {
   document.getElementById('navLinks').classList.toggle('active');
   document.getElementById('adminNavLinks').classList.toggle('active');
+  document.getElementById('userNavLinks').classList.toggle('active');
+  document.getElementById('driverNavLinks').classList.toggle('active');
 }
+
 function closeMenu() {
   document.getElementById('navLinks').classList.remove('active');
   document.getElementById('adminNavLinks').classList.remove('active');
-}
-
-function switchAuthTab(tab) {
-  document.getElementById('loginError').style.display = 'none';
-  if (tab === 'login') {
-    document.getElementById('tabLogin').classList.add('active');
-    document.getElementById('tabRegister').classList.remove('active');
-    document.getElementById('loginForm').classList.remove('hidden');
-    document.getElementById('registerForm').classList.add('hidden');
-  } else {
-    document.getElementById('tabLogin').classList.remove('active');
-    document.getElementById('tabRegister').classList.add('active');
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('registerForm').classList.remove('hidden');
-  }
+  document.getElementById('userNavLinks').classList.remove('active');
+  document.getElementById('driverNavLinks').classList.remove('active');
 }
 
 // ============================================================
@@ -790,52 +1079,13 @@ function switchAuthTab(tab) {
 // ============================================================
 async function doFirebaseLogin(e) {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
-  const errorDiv = document.getElementById('loginError');
-  
   showLoading('Memproses login...');
-  
   try {
-    await auth.signInWithEmailAndPassword(email, password);
-    errorDiv.style.display = 'none';
-    toast('Login berhasil! Selamat datang');
+    await auth.signInWithEmailAndPassword(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
+    toast('Login berhasil!');
   } catch(err) {
-    errorDiv.textContent = '❌ ' + getAuthErrorMessage(err.code);
-    errorDiv.style.display = 'block';
-    hideLoading();
-  }
-}
-
-async function doFirebaseRegister(e) {
-  e.preventDefault();
-  const nama = document.getElementById('regName').value;
-  const email = document.getElementById('regEmail').value;
-  const password = document.getElementById('regPassword').value;
-  const code = document.getElementById('regCode').value;
-  const errorDiv = document.getElementById('loginError');
-  
-  if (code !== REGISTRATION_CODE) {
-    errorDiv.textContent = '❌ Kode registrasi salah! Hubungi admin.';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  
-  showLoading('Mendaftar akun...');
-  
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, password);
-    await db.collection('users').doc(cred.user.uid).set({
-      nama: nama,
-      email: email,
-      role: 'admin',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    errorDiv.style.display = 'none';
-    toast('Registrasi berhasil!');
-  } catch(err) {
-    errorDiv.textContent = '❌ ' + getAuthErrorMessage(err.code);
-    errorDiv.style.display = 'block';
+    document.getElementById('loginError').textContent = '❌ ' + getAuthErrorMessage(err.code);
+    document.getElementById('loginError').style.display = 'block';
     hideLoading();
   }
 }
@@ -843,25 +1093,17 @@ async function doFirebaseRegister(e) {
 async function doFirebaseLogout() {
   if (!confirm('Yakin ingin logout?')) return;
   showLoading('Logging out...');
-  try {
-    await auth.signOut();
-    toast('Logout berhasil');
-  } catch(err) {
-    toast('Gagal logout: ' + err.message, 'error');
-    hideLoading();
-  }
+  await auth.signOut();
+  toast('Logout berhasil');
+  hideLoading();
 }
 
 function getAuthErrorMessage(code) {
-  const messages = {
-    'auth/user-not-found': 'Email tidak terdaftar',
+  const messages = { 
+    'auth/invalid-credential': 'Email atau password salah', 
+    'auth/user-not-found': 'Email tidak terdaftar', 
     'auth/wrong-password': 'Password salah',
-    'auth/invalid-email': 'Format email tidak valid',
-    'auth/invalid-credential': 'Email atau password salah',
-    'auth/email-already-in-use': 'Email sudah digunakan',
-    'auth/weak-password': 'Password terlalu lemah (min 6 karakter)',
-    'auth/too-many-requests': 'Terlalu banyak percobaan. Coba lagi nanti',
-    'auth/network-request-failed': 'Koneksi internet bermasalah'
+    'auth/invalid-email': 'Format email tidak valid'
   };
   return messages[code] || code;
 }
@@ -871,66 +1113,62 @@ function getAuthErrorMessage(code) {
 // ============================================================
 function subscribeToData() {
   if (unsubscribeData) unsubscribeData();
-  
-  unsubscribeData = db.collection('sampah')
-    .orderBy('tanggal', 'desc')
-    .onSnapshot(snapshot => {
-      dataSampah = [];
-      snapshot.forEach(doc => {
-        dataSampah.push({ id: doc.id, ...doc.data() });
-      });
-      renderAdmin();
-      hideLoading();
-    }, err => {
-      console.error('Firestore error:', err);
-      toast('Gagal memuat data: ' + err.message, 'error');
-      hideLoading();
-    });
+  unsubscribeData = db.collection('sampah').orderBy('tanggal', 'desc').onSnapshot(snapshot => {
+    dataSampah = [];
+    snapshot.forEach(doc => dataSampah.push({ id: doc.id, ...doc.data() }));
+    renderAdmin();
+    renderUserDashboard();
+    renderUserList();
+    hideLoading();
+  }, err => {
+    console.error('Firestore error:', err);
+    hideLoading();
+  });
 }
 
 // ============================================================
-// CRUD
+// CRUD (Admin & Driver)
 // ============================================================
 async function addData(e) {
   e.preventDefault();
+  if (selectedFiles.length > 5) { toast('Maksimal 5 foto!', 'error'); return; }
   
-  if (selectedFiles.length > 5) {
-    toast('Maksimal 5 foto per data!', 'error');
-    return;
-  }
-  
-  const btnSave = document.getElementById('btnSave');
+  const btnSave = currentUserRole === 'driver' ? document.getElementById('dBtnSave') : document.getElementById('btnSave');
   btnSave.disabled = true;
   showLoading('Mengompresi foto & menyimpan data...');
   
   try {
-    // Kompresi semua foto
     const compressedPhotos = [];
     for (let i = 0; i < selectedFiles.length; i++) {
       const base64 = await compressImage(selectedFiles[i].file);
       compressedPhotos.push(base64);
     }
     
-    const newData = {
-      tanggal: document.getElementById('fTanggal').value,
-      jenis: document.getElementById('fJenis').value,
-      berat: parseFloat(document.getElementById('fBerat').value) || 0,
-      diolah: document.getElementById('fDiolah').value ? parseFloat(document.getElementById('fDiolah').value) : null,
-      residu: document.getElementById('fResidu').value ? parseFloat(document.getElementById('fResidu').value) : null,
-      petugas: document.getElementById('fPetugas').value,
-      catatan: document.getElementById('fCatatan').value,
-      fotos: compressedPhotos, // Array base64
+    const prefix = currentUserRole === 'driver' ? 'd' : 'f';
+    await db.collection('sampah').add({
+      tanggal: document.getElementById(prefix + 'Tanggal').value,
+      jenis: document.getElementById(prefix + 'Jenis').value,
+      berat: parseFloat(document.getElementById(prefix + 'Berat').value) || 0,
+      diolah: document.getElementById(prefix + 'Diolah').value ? parseFloat(document.getElementById(prefix + 'Diolah').value) : null,
+      residu: document.getElementById(prefix + 'Residu').value ? parseFloat(document.getElementById(prefix + 'Residu').value) : null,
+      petugas: document.getElementById(prefix + 'Petugas').value,
+      catatan: document.getElementById(prefix + 'Catatan').value,
+      fotos: compressedPhotos,
       createdBy: currentUser ? currentUser.email : 'unknown',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    await db.collection('sampah').add(newData);
+    });
     
     e.target.reset();
     selectedFiles = [];
     renderFileList();
-    document.getElementById('fTanggal').valueAsDate = new Date();
+    document.getElementById(prefix + 'Tanggal').valueAsDate = new Date();
     toast('✅ Data berhasil disimpan!');
+    
+    if (currentUserRole === 'driver') {
+      showDriverSection('driverInput');
+    } else {
+      showSection('dataList');
+    }
   } catch(err) {
     console.error(err);
     toast('❌ Gagal menyimpan: ' + err.message, 'error');
@@ -943,7 +1181,6 @@ async function addData(e) {
 async function editData(id) {
   const record = dataSampah.find(d => d.id === id);
   if (!record) return;
-  
   document.getElementById('eId').value = record.id;
   document.getElementById('eTanggal').value = record.tanggal;
   document.getElementById('eJenis').value = record.jenis;
@@ -957,33 +1194,23 @@ async function editData(id) {
   editFiles = [];
   renderEditExistingPhotos();
   renderEditFileList();
-  
   document.getElementById('editModal').classList.add('active');
 }
 
 async function updateData(e) {
   e.preventDefault();
   const id = document.getElementById('eId').value;
-  
-  const totalPhotos = editExistingPhotos.length + editFiles.length;
-  if (totalPhotos > 5) {
-    toast('Maksimal 5 foto per data!', 'error');
-    return;
-  }
+  if (editExistingPhotos.length + editFiles.length > 5) { toast('Maksimal 5 foto!', 'error'); return; }
   
   showLoading('Mengompresi foto & mengupdate...');
-  
   try {
-    // Kompresi foto baru
     const newCompressedPhotos = [];
     for (let i = 0; i < editFiles.length; i++) {
       const base64 = await compressImage(editFiles[i].file);
       newCompressedPhotos.push(base64);
     }
     
-    const allFotos = [...editExistingPhotos, ...newCompressedPhotos];
-    
-    const updateData = {
+    await db.collection('sampah').doc(id).update({
       tanggal: document.getElementById('eTanggal').value,
       jenis: document.getElementById('eJenis').value,
       berat: parseFloat(document.getElementById('eBerat').value) || 0,
@@ -991,16 +1218,12 @@ async function updateData(e) {
       residu: document.getElementById('eResidu').value ? parseFloat(document.getElementById('eResidu').value) : null,
       petugas: document.getElementById('ePetugas').value,
       catatan: document.getElementById('eCatatan').value,
-      fotos: allFotos,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedBy: currentUser ? currentUser.email : 'unknown'
-    };
-    
-    await db.collection('sampah').doc(id).update(updateData);
+      fotos: [...editExistingPhotos, ...newCompressedPhotos],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     closeEditModal();
     toast('✅ Data berhasil diupdate!');
   } catch(err) {
-    console.error(err);
     toast('❌ Gagal update: ' + err.message, 'error');
   } finally {
     hideLoading();
@@ -1009,9 +1232,7 @@ async function updateData(e) {
 
 async function deleteData(id) {
   if (!confirm('Hapus data ini?')) return;
-  
   showLoading('Menghapus data...');
-  
   try {
     await db.collection('sampah').doc(id).delete();
     toast('Data dihapus');
@@ -1022,18 +1243,40 @@ async function deleteData(id) {
   }
 }
 
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ============================================================
 // FILE HANDLING
 // ============================================================
 function handleFileSelect(event) {
   const files = Array.from(event.target.files);
-  
-  if (selectedFiles.length + files.length > 5) {
-    toast('Maksimal 5 foto!', 'error');
-    event.target.value = '';
-    return;
-  }
-  
+  if (selectedFiles.length + files.length > 5) { toast('Maksimal 5 foto!', 'error'); event.target.value = ''; return; }
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -1046,8 +1289,8 @@ function handleFileSelect(event) {
 }
 
 function renderFileList() {
-  const container = document.getElementById('fileList');
-  container.innerHTML = selectedFiles.map((f, idx) => `
+  const containerId = currentUserRole === 'driver' ? 'dFileList' : 'fileList';
+  document.getElementById(containerId).innerHTML = selectedFiles.map((f, idx) => `
     <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
       <img src="${f.dataUrl}" alt="${f.name}">
       <div class="remove-file" onclick="event.stopPropagation(); removeFile(${idx})">×</div>
@@ -1055,20 +1298,11 @@ function renderFileList() {
   `).join('');
 }
 
-function removeFile(idx) {
-  selectedFiles.splice(idx, 1);
-  renderFileList();
-}
+function removeFile(idx) { selectedFiles.splice(idx, 1); renderFileList(); }
 
 function handleEditFileSelect(event) {
   const files = Array.from(event.target.files);
-  
-  if (editExistingPhotos.length + editFiles.length + files.length > 5) {
-    toast('Maksimal 5 foto!', 'error');
-    event.target.value = '';
-    return;
-  }
-  
+  if (editExistingPhotos.length + editFiles.length + files.length > 5) { toast('Maksimal 5 foto!', 'error'); event.target.value = ''; return; }
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -1081,8 +1315,7 @@ function handleEditFileSelect(event) {
 }
 
 function renderEditFileList() {
-  const container = document.getElementById('eFileList');
-  container.innerHTML = editFiles.map((f, idx) => `
+  document.getElementById('eFileList').innerHTML = editFiles.map((f, idx) => `
     <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
       <img src="${f.dataUrl}" alt="${f.name}">
       <div class="remove-file" onclick="event.stopPropagation(); removeEditFile(${idx})">×</div>
@@ -1090,24 +1323,11 @@ function renderEditFileList() {
   `).join('');
 }
 
-function removeEditFile(idx) {
-  editFiles.splice(idx, 1);
-  renderEditFileList();
-}
-
-function removeExistingPhoto(idx) {
-  if (confirm('Hapus foto ini?')) {
-    editExistingPhotos.splice(idx, 1);
-    renderEditExistingPhotos();
-  }
-}
+function removeEditFile(idx) { editFiles.splice(idx, 1); renderEditFileList(); }
 
 function renderEditExistingPhotos() {
   const container = document.getElementById('eExistingPhotos');
-  if (editExistingPhotos.length === 0) {
-    container.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">Belum ada foto</p>';
-    return;
-  }
+  if (editExistingPhotos.length === 0) { container.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">Belum ada foto</p>'; return; }
   container.innerHTML = editExistingPhotos.map((foto, idx) => `
     <div class="photo-item" onclick="viewPhoto('${foto.replace(/'/g, "\\'")}')">
       <img src="${foto}" alt="Foto ${idx+1}">
@@ -1120,22 +1340,19 @@ function viewPhoto(src) {
   document.getElementById('photoModal').classList.add('active');
 }
 
-function closePhotoModal() {
-  document.getElementById('photoModal').classList.remove('active');
-}
+function closePhotoModal() { document.getElementById('photoModal').classList.remove('active'); }
 
 function viewRecordPhotos(id) {
   const record = dataSampah.find(d => d.id === id);
   if (record && record.fotos && record.fotos.length > 0) {
-    const html = record.fotos.map(f => `<img src="${f}" class="full-image" style="margin-bottom:10px;">`).join('');
-    document.getElementById('photoViewer').innerHTML = html;
+    document.getElementById('photoViewer').innerHTML = record.fotos.map(f => `<img src="${f}" class="full-image" style="margin-bottom:10px;">`).join('');
     document.getElementById('photoModal').classList.add('active');
   }
 }
 
 function closeEditModal() {
   document.getElementById('editModal').classList.remove('active');
-  editFiles = [];
+  editFiles = []; 
   editExistingPhotos = [];
 }
 
@@ -1156,88 +1373,515 @@ function renderPublic() {
   const tbody = document.getElementById('pubTable');
   tbody.innerHTML = dataSampah.slice(0, 5).map(d => {
     const hasProcessed = d.diolah !== null && d.diolah !== undefined;
-    const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
-    const statusText = hasProcessed ? `${d.diolah} kg diolah` : 'Menunggu';
-    const fotoCount = d.fotos && d.fotos.length > 0 ? `📷 ${d.fotos.length}` : '-';
-    return `
-      <tr>
-        <td>${d.tanggal}</td>
-        <td>${d.jenis}</td>
-        <td>${d.berat}</td>
-        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td>${fotoCount}</td>
-      </tr>
-    `;
+    return `<tr>
+      <td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat}</td>
+      <td><span class="status-badge ${hasProcessed ? 'status-diolah' : 'status-pending'}">${hasProcessed ? d.diolah+' kg diolah' : 'Menunggu'}</span></td>
+      <td>${d.fotos && d.fotos.length > 0 ? `📷 ${d.fotos.length}` : '-'}</td>
+    </tr>`;
   }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data</td></tr>';
 
-  const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
-  const labels = sorted.map(d=>d.tanggal);
-  const diolah = sorted.map(d=>d.diolah||0);
-  const residu = sorted.map(d=>d.residu||0);
-  if (pubChart) pubChart.destroy();
-  if (sorted.length > 0) {
-    pubChart = new Chart(document.getElementById('pubChart'), {
-      type:'bar',
-      data:{labels,datasets:[
-        {label:'Diolah (kg)',data:diolah,backgroundColor:'#2e7d32'},
-        {label:'Residu (kg)',data:residu,backgroundColor:'#e53935'}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
-    });
-  }
+  renderChart('pubChart', true);
 }
 
 function renderAdmin() {
   renderPublic();
+  document.getElementById('admTotalPickup').textContent = dataSampah.length;
+  document.getElementById('admTotalWeight').textContent = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0).toFixed(1);
+  document.getElementById('admProcessed').textContent = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0).toFixed(1);
+  document.getElementById('admResidue').textContent = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0).toFixed(1);
+
+  const tbody = document.getElementById('admTable');
+  tbody.innerHTML = dataSampah.map(d => {
+    const hasProcessed = d.diolah !== null && d.diolah !== undefined;
+    const fotoCount = d.fotos && d.fotos.length > 0 ? d.fotos.length : 0;
+    return `<tr>
+      <td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat} kg</td>
+      <td><span class="status-badge ${hasProcessed ? 'status-diolah' : 'status-pending'}">${hasProcessed ? d.diolah : '-'}</span></td>
+      <td><span class="status-badge ${hasProcessed ? 'status-diolah' : 'status-pending'}">${d.residu !== null ? d.residu : '-'}</span></td>
+      <td>${d.petugas}</td>
+      <td>${fotoCount > 0 ? `<span style="cursor:pointer;color:var(--primary);" onclick="viewRecordPhotos('${d.id}')">📷 ${fotoCount}</span>` : '-'}</td>
+      <td>
+        <button class="btn btn-warning btn-small" onclick="editData('${d.id}')">✏️</button>
+        <button class="btn btn-danger btn-small" onclick="deleteData('${d.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data.</td></tr>';
+
+  renderChart('admChart', false);
+}
+
+function renderUserDashboard() {
   const totalPickup = dataSampah.length;
   const totalWeight = dataSampah.reduce((a,b)=>a+Number(b.berat||0),0);
   const totalProcessed = dataSampah.reduce((a,b)=>a+Number(b.diolah||0),0);
   const totalResidue = dataSampah.reduce((a,b)=>a+Number(b.residu||0),0);
   
-  document.getElementById('admTotalPickup').textContent = totalPickup;
-  document.getElementById('admTotalWeight').textContent = totalWeight.toFixed(1);
-  document.getElementById('admProcessed').textContent = totalProcessed.toFixed(1);
-  document.getElementById('admResidue').textContent = totalResidue.toFixed(1);
+  document.getElementById('usrTotalPickup').textContent = totalPickup;
+  document.getElementById('usrTotalWeight').textContent = totalWeight.toFixed(1);
+  document.getElementById('usrProcessed').textContent = totalProcessed.toFixed(1);
+  document.getElementById('usrResidue').textContent = totalResidue.toFixed(1);
 
-  const tbody = document.getElementById('admTable');
+  renderChart('usrChart', true);
+}
+
+function renderUserList() {
+  const tbody = document.getElementById('usrTable');
   tbody.innerHTML = dataSampah.map(d => {
     const hasProcessed = d.diolah !== null && d.diolah !== undefined;
-    const statusClass = hasProcessed ? 'status-diolah' : 'status-pending';
-    const diolahText = hasProcessed ? d.diolah : '-';
-    const residuText = d.residu !== null && d.residu !== undefined ? d.residu : '-';
     const fotoCount = d.fotos && d.fotos.length > 0 ? d.fotos.length : 0;
-    return `
+    return `<tr>
+      <td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat} kg</td>
+      <td><span class="status-badge ${hasProcessed ? 'status-diolah' : 'status-pending'}">${hasProcessed ? d.diolah : '-'}</span></td>
+      <td><span class="status-badge ${hasProcessed ? 'status-diolah' : 'status-pending'}">${d.residu !== null ? d.residu : '-'}</span></td>
+      <td>${d.petugas}</td>
+      <td>${fotoCount > 0 ? `<span style="cursor:pointer;color:var(--primary);" onclick="viewRecordPhotos('${d.id}')">📷 ${fotoCount}</span>` : '-'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data.</td></tr>';
+}
+
+function renderChart(canvasId, isBar) {
+  const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
+  if (sorted.length === 0) return;
+  
+  const chartEl = document.getElementById(canvasId);
+  if (!chartEl) return;
+  
+  if (window[canvasId]) window[canvasId].destroy();
+  
+  window[canvasId] = new Chart(chartEl, {
+    type: isBar ? 'bar' : 'line',
+    data: {
+      labels: sorted.map(d=>d.tanggal),
+      datasets: [
+        {label:'Diolah (kg)', data:sorted.map(d=>d.diolah||0), backgroundColor: isBar ? '#2e7d32' : 'rgba(46,125,50,0.1)', borderColor: '#2e7d32', fill: !isBar, tension: 0.3},
+        {label:'Residu (kg)', data:sorted.map(d=>d.residu||0), backgroundColor: isBar ? '#e53935' : 'rgba(229,57,53,0.1)', borderColor: '#e53935', fill: !isBar, tension: 0.3}
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+// ============================================================
+// 📊 REPORT GENERATION (Admin)
+// ============================================================
+function toggleCustomDate() {
+  const period = document.getElementById('reportPeriod').value;
+  
+  document.getElementById('dailyDateGroup').classList.add('hidden');
+  document.getElementById('weeklyDateGroup').classList.add('hidden');
+  document.getElementById('monthlyDateGroup').classList.add('hidden');
+  document.getElementById('customDateGroup').classList.add('hidden');
+  document.getElementById('customDateGroup2').classList.add('hidden');
+  
+  if (period === 'daily') {
+    document.getElementById('dailyDateGroup').classList.remove('hidden');
+  } else if (period === 'weekly') {
+    document.getElementById('weeklyDateGroup').classList.remove('hidden');
+  } else if (period === 'monthly') {
+    document.getElementById('monthlyDateGroup').classList.remove('hidden');
+  } else if (period === 'custom') {
+    document.getElementById('customDateGroup').classList.remove('hidden');
+    document.getElementById('customDateGroup2').classList.remove('hidden');
+  }
+  
+  generateReport();
+}
+
+function generateReport() {
+  const period = document.getElementById('reportPeriod').value;
+  let filteredData = [];
+  let chartLabels = [];
+  let chartDiolah = [];
+  let chartResidu = [];
+  
+  if (period === 'daily') {
+    const selectedDate = document.getElementById('reportDate').value;
+    if (!selectedDate) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal === selectedDate);
+    chartLabels = [selectedDate];
+    chartDiolah = [filteredData.reduce((a,b) => a + Number(b.diolah||0), 0)];
+    chartResidu = [filteredData.reduce((a,b) => a + Number(b.residu||0), 0)];
+    
+  } else if (period === 'weekly') {
+    const selectedDate = new Date(document.getElementById('reportWeekDate').value);
+    if (!document.getElementById('reportWeekDate').value) return;
+    
+    const day = selectedDate.getDay();
+    const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(selectedDate.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const mondayStr = monday.toISOString().split('T')[0];
+    const sundayStr = sunday.toISOString().split('T')[0];
+    
+    filteredData = dataSampah.filter(d => d.tanggal >= mondayStr && d.tanggal <= sundayStr);
+    
+    const dateMap = {};
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      dateMap[dateStr] = { diolah: 0, residu: 0 };
+    }
+    
+    filteredData.forEach(d => {
+      if (dateMap[d.tanggal]) {
+        dateMap[d.tanggal].diolah += Number(d.diolah||0);
+        dateMap[d.tanggal].residu += Number(d.residu||0);
+      }
+    });
+    
+    chartLabels = Object.keys(dateMap);
+    chartDiolah = Object.values(dateMap).map(v => v.diolah);
+    chartResidu = Object.values(dateMap).map(v => v.residu);
+    
+  } else if (period === 'monthly') {
+    const selectedMonth = document.getElementById('reportMonth').value;
+    if (!selectedMonth) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal.startsWith(selectedMonth));
+    
+    const dateMap = {};
+    filteredData.forEach(d => {
+      if (!dateMap[d.tanggal]) {
+        dateMap[d.tanggal] = { diolah: 0, residu: 0 };
+      }
+      dateMap[d.tanggal].diolah += Number(d.diolah||0);
+      dateMap[d.tanggal].residu += Number(d.residu||0);
+    });
+    
+    chartLabels = Object.keys(dateMap).sort();
+    chartDiolah = chartLabels.map(l => dateMap[l].diolah);
+    chartResidu = chartLabels.map(l => dateMap[l].residu);
+    
+  } else if (period === 'custom') {
+    const dateFrom = document.getElementById('reportDateFrom').value;
+    const dateTo = document.getElementById('reportDateTo').value;
+    if (!dateFrom || !dateTo) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal >= dateFrom && d.tanggal <= dateTo);
+    
+    const dateMap = {};
+    filteredData.forEach(d => {
+      if (!dateMap[d.tanggal]) {
+        dateMap[d.tanggal] = { diolah: 0, residu: 0 };
+      }
+      dateMap[d.tanggal].diolah += Number(d.diolah||0);
+      dateMap[d.tanggal].residu += Number(d.residu||0);
+    });
+    
+    chartLabels = Object.keys(dateMap).sort();
+    chartDiolah = chartLabels.map(l => dateMap[l].diolah);
+    chartResidu = chartLabels.map(l => dateMap[l].residu);
+  }
+  
+  const totalPickup = filteredData.length;
+  const totalWeight = filteredData.reduce((a,b) => a + Number(b.berat||0), 0);
+  const totalProcessed = filteredData.reduce((a,b) => a + Number(b.diolah||0), 0);
+  const totalResidue = filteredData.reduce((a,b) => a + Number(b.residu||0), 0);
+  
+  document.getElementById('rptTotalPickup').textContent = totalPickup;
+  document.getElementById('rptTotalWeight').textContent = totalWeight.toFixed(1);
+  document.getElementById('rptTotalProcessed').textContent = totalProcessed.toFixed(1);
+  document.getElementById('rptTotalResidue').textContent = totalResidue.toFixed(1);
+  
+  const tbody = document.getElementById('reportTableBody');
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Tidak ada data untuk periode ini</td></tr>';
+  } else {
+    tbody.innerHTML = filteredData.map(d => `
       <tr>
         <td>${d.tanggal}</td>
         <td>${d.jenis}</td>
         <td>${d.berat} kg</td>
-        <td><span class="status-badge ${statusClass}">${diolahText}</span></td>
-        <td><span class="status-badge ${hasProcessed ? 'status-residu' : 'status-pending'}">${residuText}</span></td>
+        <td>${d.diolah !== null ? d.diolah + ' kg' : '-'}</td>
+        <td>${d.residu !== null ? d.residu + ' kg' : '-'}</td>
         <td>${d.petugas}</td>
-        <td>${fotoCount > 0 ? `<span style="cursor:pointer;color:var(--primary);" onclick="viewRecordPhotos('${d.id}')">📷 ${fotoCount}</span>` : '-'}</td>
-        <td>
-          <button class="btn btn-warning btn-small" onclick="editData('${d.id}')">✏️</button>
-          <button class="btn btn-danger btn-small" onclick="deleteData('${d.id}')">🗑️</button>
-        </td>
       </tr>
-    `;
-  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data. Silakan input data pertama.</td></tr>';
-
-  const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
-  const labels = sorted.map(d=>d.tanggal);
-  const diolah = sorted.map(d=>d.diolah||0);
-  const residu = sorted.map(d=>d.residu||0);
-  if (admChart) admChart.destroy();
-  if (sorted.length > 0) {
-    admChart = new Chart(document.getElementById('admChart'), {
-      type:'line',
-      data:{labels,datasets:[
-        {label:'Diolah (kg)',data:diolah,borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,0.1)',fill:true,tension:0.3},
-        {label:'Residu (kg)',data:residu,borderColor:'#e53935',backgroundColor:'rgba(229,57,53,0.1)',fill:true,tension:0.3}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+    `).join('');
+  }
+  
+  if (reportChart) reportChart.destroy();
+  if (chartLabels.length > 0) {
+    reportChart = new Chart(document.getElementById('reportChart'), {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {label:'Diolah (kg)', data:chartDiolah, borderColor:'#2e7d32', backgroundColor:'rgba(46,125,50,0.1)', fill:true, tension:0.3},
+          {label:'Residu (kg)', data:chartResidu, borderColor:'#e53935', backgroundColor:'rgba(229,57,53,0.1)', fill:true, tension:0.3}
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
   }
+}
+
+// ============================================================
+// 📊 REPORT GENERATION (User)
+// ============================================================
+function toggleUserCustomDate() {
+  const period = document.getElementById('userReportPeriod').value;
+  
+  document.getElementById('userDailyDateGroup').classList.add('hidden');
+  document.getElementById('userWeeklyDateGroup').classList.add('hidden');
+  document.getElementById('userMonthlyDateGroup').classList.add('hidden');
+  document.getElementById('userCustomDateGroup').classList.add('hidden');
+  document.getElementById('userCustomDateGroup2').classList.add('hidden');
+  
+  if (period === 'daily') {
+    document.getElementById('userDailyDateGroup').classList.remove('hidden');
+  } else if (period === 'weekly') {
+    document.getElementById('userWeeklyDateGroup').classList.remove('hidden');
+  } else if (period === 'monthly') {
+    document.getElementById('userMonthlyDateGroup').classList.remove('hidden');
+  } else if (period === 'custom') {
+    document.getElementById('userCustomDateGroup').classList.remove('hidden');
+    document.getElementById('userCustomDateGroup2').classList.remove('hidden');
+  }
+  
+  generateUserReport();
+}
+
+function generateUserReport() {
+  const period = document.getElementById('userReportPeriod').value;
+  let filteredData = [];
+  let chartLabels = [];
+  let chartDiolah = [];
+  let chartResidu = [];
+  
+  if (period === 'daily') {
+    const selectedDate = document.getElementById('userReportDate').value;
+    if (!selectedDate) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal === selectedDate);
+    chartLabels = [selectedDate];
+    chartDiolah = [filteredData.reduce((a,b) => a + Number(b.diolah||0), 0)];
+    chartResidu = [filteredData.reduce((a,b) => a + Number(b.residu||0), 0)];
+    
+  } else if (period === 'weekly') {
+    const selectedDate = new Date(document.getElementById('userReportWeekDate').value);
+    if (!document.getElementById('userReportWeekDate').value) return;
+    
+    const day = selectedDate.getDay();
+    const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(selectedDate.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const mondayStr = monday.toISOString().split('T')[0];
+    const sundayStr = sunday.toISOString().split('T')[0];
+    
+    filteredData = dataSampah.filter(d => d.tanggal >= mondayStr && d.tanggal <= sundayStr);
+    
+    const dateMap = {};
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      dateMap[dateStr] = { diolah: 0, residu: 0 };
+    }
+    
+    filteredData.forEach(d => {
+      if (dateMap[d.tanggal]) {
+        dateMap[d.tanggal].diolah += Number(d.diolah||0);
+        dateMap[d.tanggal].residu += Number(d.residu||0);
+      }
+    });
+    
+    chartLabels = Object.keys(dateMap);
+    chartDiolah = Object.values(dateMap).map(v => v.diolah);
+    chartResidu = Object.values(dateMap).map(v => v.residu);
+    
+  } else if (period === 'monthly') {
+    const selectedMonth = document.getElementById('userReportMonth').value;
+    if (!selectedMonth) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal.startsWith(selectedMonth));
+    
+    const dateMap = {};
+    filteredData.forEach(d => {
+      if (!dateMap[d.tanggal]) {
+        dateMap[d.tanggal] = { diolah: 0, residu: 0 };
+      }
+      dateMap[d.tanggal].diolah += Number(d.diolah||0);
+      dateMap[d.tanggal].residu += Number(d.residu||0);
+    });
+    
+    chartLabels = Object.keys(dateMap).sort();
+    chartDiolah = chartLabels.map(l => dateMap[l].diolah);
+    chartResidu = chartLabels.map(l => dateMap[l].residu);
+    
+  } else if (period === 'custom') {
+    const dateFrom = document.getElementById('userReportDateFrom').value;
+    const dateTo = document.getElementById('userReportDateTo').value;
+    if (!dateFrom || !dateTo) return;
+    
+    filteredData = dataSampah.filter(d => d.tanggal >= dateFrom && d.tanggal <= dateTo);
+    
+    const dateMap = {};
+    filteredData.forEach(d => {
+      if (!dateMap[d.tanggal]) {
+        dateMap[d.tanggal] = { diolah: 0, residu: 0 };
+      }
+      dateMap[d.tanggal].diolah += Number(d.diolah||0);
+      dateMap[d.tanggal].residu += Number(d.residu||0);
+    });
+    
+    chartLabels = Object.keys(dateMap).sort();
+    chartDiolah = chartLabels.map(l => dateMap[l].diolah);
+    chartResidu = chartLabels.map(l => dateMap[l].residu);
+  }
+  
+  const totalPickup = filteredData.length;
+  const totalWeight = filteredData.reduce((a,b) => a + Number(b.berat||0), 0);
+  const totalProcessed = filteredData.reduce((a,b) => a + Number(b.diolah||0), 0);
+  const totalResidue = filteredData.reduce((a,b) => a + Number(b.residu||0), 0);
+  
+  document.getElementById('usrRptTotalPickup').textContent = totalPickup;
+  document.getElementById('usrRptTotalWeight').textContent = totalWeight.toFixed(1);
+  document.getElementById('usrRptTotalProcessed').textContent = totalProcessed.toFixed(1);
+  document.getElementById('usrRptTotalResidue').textContent = totalResidue.toFixed(1);
+  
+  const tbody = document.getElementById('userReportTableBody');
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray);">Tidak ada data untuk periode ini</td></tr>';
+  } else {
+    tbody.innerHTML = filteredData.map(d => `
+      <tr>
+        <td>${d.tanggal}</td>
+        <td>${d.jenis}</td>
+        <td>${d.berat} kg</td>
+        <td>${d.diolah !== null ? d.diolah + ' kg' : '-'}</td>
+        <td>${d.residu !== null ? d.residu + ' kg' : '-'}</td>
+        <td>${d.petugas}</td>
+      </tr>
+    `).join('');
+  }
+  
+  if (userReportChart) userReportChart.destroy();
+  if (chartLabels.length > 0) {
+    userReportChart = new Chart(document.getElementById('userReportChart'), {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {label:'Diolah (kg)', data:chartDiolah, borderColor:'#2e7d32', backgroundColor:'rgba(46,125,50,0.1)', fill:true, tension:0.3},
+          {label:'Residu (kg)', data:chartResidu, borderColor:'#e53935', backgroundColor:'rgba(229,57,53,0.1)', fill:true, tension:0.3}
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+}
+
+// ============================================================
+// 🗺️ LIVE TRACKING
+// ============================================================
+function initMap(mapId) {
+  setTimeout(() => {
+    if (!maps[mapId]) {
+      maps[mapId] = L.map(mapId).setView([-6.200000, 106.600000], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: '© OpenStreetMap' 
+      }).addTo(maps[mapId]);
+    }
+    maps[mapId].invalidateSize();
+    
+    if (mapId === 'mapAdmin') {
+      listenToLiveTracking('armadaTableBody', maps[mapId]);
+    } else if (mapId === 'mapUser') {
+      listenToLiveTracking('userArmadaTableBody', maps[mapId]);
+    } else if (mapId === 'mapDriver') {
+      listenToLiveTracking('driverArmadaTableBody', maps[mapId]);
+    } else if (mapId === 'mapPublic') {
+      listenToLiveTracking('armadaTableBody', maps[mapId], true);
+    }
+  }, 100);
+}
+
+function listenToLiveTracking(tableBodyId, mapInstance, isPublic = false) {
+  db.collection('live_tracking').where('isActive', '==', true).onSnapshot(snapshot => {
+    const tbody = document.getElementById(tableBodyId);
+    tbody.innerHTML = '';
+    
+    if (snapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Tidak ada armada aktif</td></tr>';
+      if (isPublic) {
+        document.getElementById('mapOverlay').style.display = 'flex';
+      }
+    } else {
+      if (isPublic) {
+        document.getElementById('mapOverlay').style.display = 'none';
+      }
+    }
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const docId = doc.id;
+      
+      if (markers[docId]) {
+        markers[docId].setLatLng([data.lat, data.lng]);
+        markers[docId].setPopupContent(`<b>${data.vehicleName}</b><br>Driver: ${data.driverName}<br>Update: ${data.localTime}`);
+      } else {
+        markers[docId] = L.marker([data.lat, data.lng]).addTo(mapInstance)
+          .bindPopup(`<b>${data.vehicleName}</b><br>Driver: ${data.driverName}<br>Update: ${data.localTime}`);
+      }
+      
+      tbody.innerHTML += `<tr>
+        <td style="padding:12px;font-weight:bold;">${data.vehicleName}</td>
+        <td style="padding:12px;">${data.driverName}</td>
+        <td style="padding:12px;color:var(--gray);">${data.localTime || 'Baru saja'}</td>
+        <td style="padding:12px;"><span class="status-badge status-diolah">🟢 Aktif</span></td>
+      </tr>`;
+    });
+  });
+}
+
+function startDriverTracking(e) {
+  e.preventDefault();
+  const driverName = document.getElementById('driverName').value;
+  const vehicleName = document.getElementById('vehicleName').value;
+  
+  if (!navigator.geolocation) { alert("Browser HP tidak mendukung Geolocation."); return; }
+
+  document.getElementById('btnStartTrack').style.display = 'none';
+  document.getElementById('btnStopTrack').style.display = 'block';
+  document.getElementById('driverStatus').innerHTML = '📡 <span style="color:green">Mencari sinyal GPS...</span>';
+
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      const now = new Date();
+      db.collection('live_tracking').doc(vehicleName.replace(/\s+/g, '_')).set({
+        driverName, vehicleName, lat: latitude, lng: longitude, accuracy,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        localTime: now.toLocaleString('id-ID'), isActive: true
+      }, { merge: true }).then(() => {
+        document.getElementById('driverStatus').innerHTML = `✅ Terkirim!<br>Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}<br>Akurasi: ${Math.round(accuracy)}m`;
+      }).catch(err => {
+        document.getElementById('driverStatus').innerHTML = `❌ Gagal: ${err.message}`;
+      });
+    },
+    (error) => { document.getElementById('driverStatus').innerHTML = `❌ Error GPS: ${error.message}`; },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function stopDriverTracking() {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  const vehicleName = document.getElementById('vehicleName').value;
+  if(vehicleName) {
+    db.collection('live_tracking').doc(vehicleName.replace(/\s+/g, '_')).update({ 
+      isActive: false, 
+      timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+    });
+  }
+  document.getElementById('btnStartTrack').style.display = 'block';
+  document.getElementById('btnStopTrack').style.display = 'none';
+  document.getElementById('driverStatus').innerHTML = '⏹️ Pelacakan dihentikan.';
 }
 
 // ============================================================
@@ -1247,9 +1891,8 @@ function showLoading(text='Memuat...') {
   document.getElementById('loadingText').textContent = text;
   document.getElementById('loadingOverlay').classList.remove('hidden');
 }
-function hideLoading() {
-  document.getElementById('loadingOverlay').classList.add('hidden');
-}
+
+function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
 
 function toast(msg, type='success') {
   const t = document.createElement('div');
