@@ -168,7 +168,7 @@ tr:hover{background:#f9f9f9}
         <div class="map-overlay" id="mapOverlay">
           <div class="map-overlay-content">
             <h3>🔒 Belum Ada Armada Aktif</h3>
-            <p>Live tracking akan muncul otomatis saat armada mulai berbagi lokasi</p>
+            <p>Live tracking muncul otomatis saat armada mulai berbagi lokasi</p>
             <button class="btn" onclick="showDriverTracking()">🚛 Mulai Share Lokasi</button>
           </div>
         </div>
@@ -193,7 +193,7 @@ tr:hover{background:#f9f9f9}
   <div class="footer"><p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p><p style="font-size:.8rem">The Hood, Summarecon Serpong - BSD City</p></div>
 </div>
 
-<!-- ============ LOGIN VIEW ============ -->
+<!-- ============ LOGIN ============ -->
 <div id="loginView" class="hidden">
   <div class="login-container">
     <div class="login-box">
@@ -211,7 +211,7 @@ tr:hover{background:#f9f9f9}
   </div>
 </div>
 
-<!-- ============ DASHBOARD (ADMIN / USER / DRIVER) ============ -->
+<!-- ============ DASHBOARD (ADMIN/USER/DRIVER) ============ -->
 <div id="dashboardView" class="hidden">
   <nav class="navbar">
     <div class="logo">
@@ -384,6 +384,7 @@ let unsubscribeData = null;
 let maps = {}, markers = {}, polylines = {}, liveSubs = {};
 let watchId = null, routePath = [], routeDistance = 0, routeStartTime = null, routeDocId = null;
 let shareMarker = null, sharePolyline = null, savedRouteLayer = [];
+let savedRouteId = null, lastRecordTime = 0, lastSaveTime = 0;
 
 window.addEventListener('load', () => {
   setTimeout(() => { document.getElementById('splashScreen').classList.add('hidden'); initApp(); }, 1500);
@@ -665,7 +666,19 @@ function listenToLiveTracking(tableBodyId,mapId,isPublic=false){
   });
 }
 
-// ---- DRIVER SHARE + REKAM RUTE ----
+// ---- DRIVER SHARE + REKAM RUTE + AUTOSAVE ----
+function routeBaseDoc(driverName, vehicleName) {
+  return {
+    driverName, vehicleName,
+    startTime: routeStartTime ? routeStartTime.toLocaleString('id-ID') : '-',
+    endTime: null,
+    path: routePath,
+    distanceM: Math.round(routeDistance),
+    pointCount: routePath.length,
+    isActiveRoute: true,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
 function startDriverTracking(e){
   e.preventDefault();
   const driverName=document.getElementById('driverName').value.trim(), vehicleName=document.getElementById('vehicleName').value.trim(), st=document.getElementById('driverStatus');
@@ -673,6 +686,7 @@ function startDriverTracking(e){
   if(!window.isSecureContext){st.innerHTML='❌ GPS wajib HTTPS.';return;}
   if(!navigator.geolocation){st.innerHTML='❌ Browser tidak mendukung Geolocation.';return;}
   routePath=[]; routeDistance=0; routeStartTime=new Date();
+  savedRouteId=null; lastRecordTime=0; lastSaveTime=0;
   routeDocId=vehicleName.replace(/[\/\#\[\]]/g,'-').replace(/\s+/g,'_');
   if(shareMarker&&maps['mapShare']){maps['mapShare'].removeLayer(shareMarker);shareMarker=null;}
   if(sharePolyline&&maps['mapShare']){maps['mapShare'].removeLayer(sharePolyline);sharePolyline=null;}
@@ -682,11 +696,25 @@ function startDriverTracking(e){
   watchId=navigator.geolocation.watchPosition(pos=>{
     const {latitude,longitude,accuracy}=pos.coords;
     const pt=[Number(latitude.toFixed(6)),Number(longitude.toFixed(6))];
-    if(routePath.length===0||haversineM(routePath[routePath.length-1],pt)>=8){
-      if(routePath.length>0)routeDistance+=haversineM(routePath[routePath.length-1],pt);
-      routePath.push(pt); if(routePath.length>5000)routePath.shift();
+    const nowMs=Date.now();
+    const last=routePath[routePath.length-1];
+    const moved=!last||haversineM(last,pt)>=8;
+    const timeDue=(nowMs-lastRecordTime)>20000; // rekam tiap 20 dtk walau diam
+    if(moved||timeDue){
+      if(last)routeDistance+=haversineM(last,pt);
+      routePath.push(pt); lastRecordTime=nowMs;
+      if(routePath.length>5000)routePath.shift();
     }
     updateShareMap(pt);
+    // 💾 AUTOSAVE rute tiap ±30 detik
+    if(routePath.length>=2){
+      if(!savedRouteId){
+        db.collection('routes').add(routeBaseDoc(driverName,vehicleName)).then(ref=>{ savedRouteId=ref.id; lastSaveTime=Date.now(); }).catch(err=>console.error('autosave add:',err));
+      } else if(nowMs-lastSaveTime>30000){
+        lastSaveTime=nowMs;
+        db.collection('routes').doc(savedRouteId).update({ path:routePath, distanceM:Math.round(routeDistance), pointCount:routePath.length }).catch(err=>console.error('autosave update:',err));
+      }
+    }
     db.collection('live_tracking').doc(routeDocId).set({
       driverName,vehicleName,lat:latitude,lng:longitude,accuracy,
       path:routePath,distanceM:Math.round(routeDistance),
@@ -694,8 +722,8 @@ function startDriverTracking(e){
       timestamp:firebase.firestore.FieldValue.serverTimestamp(),
       localTime:new Date().toLocaleString('id-ID'),isActive:true
     },{merge:true}).then(()=>{
-      st.innerHTML='✅ TERKIRIM!<br>Lat: '+latitude.toFixed(5)+', Lng: '+longitude.toFixed(5)+'<br>Akurasi: ±'+Math.round(accuracy)+'m<br>🛣️ Titik: '+routePath.length+' | ±'+(routeDistance/1000).toFixed(2)+' km<br><small>Biarkan halaman tetap terbuka.</small>';
-    }).catch(err=>{ st.innerHTML='❌ Gagal kirim: '+err.message+'<br><small>Pastikan Firestore Rules sudah dipublish!</small>'; });
+      st.innerHTML='✅ TERKIRIM!<br>Lat: '+latitude.toFixed(5)+', Lng: '+longitude.toFixed(5)+'<br>Akurasi: ±'+Math.round(accuracy)+'m<br>🛣️ Titik: '+routePath.length+' | ±'+(routeDistance/1000).toFixed(2)+' km'+(savedRouteId?'<br>💾 Autosave rute: AKTIF':'<br>💾 Menyimpan rute otomatis...')+'<br><small>Biarkan halaman tetap terbuka.</small>';
+    }).catch(err=>{ st.innerHTML='❌ Gagal kirim: '+err.message+'<br><small>Publish Firestore Rules terbaru!</small>'; });
   },err=>{
     let m=''; if(err.code===1)m='Izin lokasi DITOLAK. Ketuk 🔒 di address bar → Site settings → Location → Allow.';
     else if(err.code===2)m='Lokasi tidak tersedia. Nyalakan GPS HP.';
@@ -721,53 +749,8 @@ function stopDriverTracking(){
   if(watchId!==null)navigator.geolocation.clearWatch(watchId); watchId=null;
   const st=document.getElementById('driverStatus');
   const driverName=document.getElementById('driverName').value.trim(), vehicleName=document.getElementById('vehicleName').value.trim();
-  if(routeDocId&&routePath.length>=2){
-    db.collection('routes').add({
-      driverName,vehicleName,
-      startTime:routeStartTime?routeStartTime.toLocaleString('id-ID'):'-',
-      endTime:new Date().toLocaleString('id-ID'),
-      path:routePath,distanceM:Math.round(routeDistance),pointCount:routePath.length,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{ st.innerHTML='⏹️ Berhenti. 🛣️ Rute TERSIMPAN: '+routePath.length+' titik, ±'+(routeDistance/1000).toFixed(2)+' km'; loadRouteHistory(); })
-    .catch(err=>{ st.innerHTML='⏹️ Berhenti, rute gagal disimpan: '+err.message; });
-    db.collection('live_tracking').doc(routeDocId).update({isActive:false,timestamp:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
-  } else {
-    if(routeDocId)db.collection('live_tracking').doc(routeDocId).update({isActive:false}).catch(()=>{});
-    st.innerHTML='⏹️ Berhenti. (Rute tidak tersimpan, titik < 2)';
-  }
-  if(maps['mapShare']&&sharePolyline&&routePath.length>1)maps['mapShare'].fitBounds(sharePolyline.getBounds(),{padding:[30,30]});
-  routePath=[]; routeDistance=0; routeStartTime=null;
-  document.getElementById('btnStartTrack').style.display='block';
-  document.getElementById('btnStopTrack').style.display='none';
-}
-
-// ---- RIWAYAT RUTE ----
-function loadRouteHistory(){
-  db.collection('routes').orderBy('createdAt','desc').limit(20).get().then(snap=>{
-    const rows=[]; snap.forEach(d=>rows.push(Object.assign({id:d.id},d.data())));
-    window.__savedRoutes=rows;
-    const tb=document.getElementById('routeTableDash'); if(!tb)return;
-    tb.innerHTML=rows.map(r=>'<tr><td>'+(r.startTime||'-')+'</td><td>'+(r.endTime||'-')+'</td><td><b>'+(r.vehicleName||'-')+'</b></td><td>'+(r.driverName||'-')+'</td><td>'+((r.distanceM||0)/1000).toFixed(2)+' km</td><td>'+(r.pointCount||(r.path?r.path.length:0))+'</td><td><button class="btn btn-small" onclick="viewSavedRoute(\''+r.id+'\')">🗺️ Lihat</button></td></tr>').join('')||'<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:15px">Belum ada rute tersimpan</td></tr>';
-  }).catch(err=>console.error('loadRouteHistory:',err));
-}
-function viewSavedRoute(routeId){
-  const map=maps['mapDash'];
-  const r=(window.__savedRoutes||[]).find(x=>x.id===routeId);
-  if(!map){alert('Peta belum siap, scroll ke atas sebentar.');return;}
-  if(!r||!r.path||r.path.length<2){alert('Rute tidak valid.');return;}
-  if(savedRouteLayer.length)savedRouteLayer.forEach(l=>map.removeLayer(l));
-  const line=L.polyline(r.path,{color:'#ff9800',weight:5,opacity:.9}).addTo(map);
-  const s=L.marker(r.path[0],{icon:flagIcon('🟢')}).addTo(map).bindPopup('<b>START</b><br>'+(r.startTime||''));
-  const f=L.marker(r.path[r.path.length-1],{icon:flagIcon('🏁')}).addTo(map).bindPopup('<b>FINISH</b><br>'+(r.endTime||''));
-  savedRouteLayer=[line,s,f];
-  map.fitBounds(line.getBounds(),{padding:[40,40]});
-  toast('🗺️ Rute '+(r.vehicleName||'')+' ditampilkan');
-}
-
-// ================= UI =================
-function showLoading(t='Memuat...'){ document.getElementById('loadingText').textContent=t; document.getElementById('loadingOverlay').classList.remove('hidden'); }
-function hideLoading(){ document.getElementById('loadingOverlay').classList.add('hidden'); }
-function toast(m,t='success'){ const d=document.createElement('div'); d.className='toast '+(t==='error'?'error':''); d.textContent=m; document.body.appendChild(d); setTimeout(()=>d.remove(),3500); }
-</script>
-</body>
-</html>
+  if(routePath.length>=2){
+    const finalData={ path:routePath, distanceM:Math.round(routeDistance), pointCount:routePath.length, endTime:new Date().toLocaleString('id-ID'), isActiveRoute:false };
+    const p=savedRouteId ? db.collection('routes').doc(savedRouteId).update(finalData) : db.collection('routes').add(Object.assign(routeBaseDoc(driverName,vehicleName),finalData));
+    p.then(()=>{ st.innerHTML='⏹️ Berhenti. 🛣️ Rute TERSIMPAN: '+routePath.length+' titik, ±'+(routeDistance/1000).toFixed(2)+' km'; loadRouteHistory(); })
+    .catch(err=>{ st.innerHTML='⏹️ Berhenti, rute GAGAL disimpan: '+err.message+'
