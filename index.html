@@ -116,7 +116,7 @@
   .spinner { width:50px; height:50px; border:4px solid var(--light); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
   .info-box { background:#e3f2fd; border-left:4px solid #1976d2; padding:15px; border-radius:6px; margin:15px 0; font-size:0.9rem; }
   .info-box.warning { background:#fff3e0; border-left-color:#ffb300; }
-  #map { height: 500px; width: 100%; border-radius: 8px; border: 1px solid #ddd; z-index: 1; }
+  #map, .map-container { height: 500px; width: 100%; border-radius: 8px; border: 1px solid #ddd; z-index: 1; }
   .map-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; border-radius: 8px; }
   .map-overlay-content { background: white; padding: 30px; border-radius: 12px; text-align: center; max-width: 300px; }
   .map-overlay-content h3 { color: var(--primary); margin-bottom: 10px; }
@@ -149,7 +149,7 @@
     th, td { padding:8px; font-size:0.8rem; }
     .modal-content { padding:20px; }
     .logo-large { width:160px; height:160px; }
-    #map { height: 400px; }
+    #map, .map-container { height: 400px; }
   }
 </style>
 </head>
@@ -222,10 +222,10 @@
     </div>
 
     <div id="trackingPublic" class="section" style="position:relative;">
-      <h2>️ Live Tracking Armada</h2>
+      <h2>🗺️ Live Tracking Armada</h2>
       <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
       <div style="position:relative;">
-        <div id="mapPublic"></div>
+        <div id="mapPublic" class="map-container"></div>
         <div class="map-overlay" id="mapOverlay">
           <div class="map-overlay-content">
             <h3>🔐 Perlu Login</h3>
@@ -497,7 +497,7 @@
 
     <div id="trackingSection" class="section hidden">
       <h2>🗺️ Live Tracking Armada</h2>
-      <div id="mapAdmin"></div>
+      <div id="mapAdmin" class="map-container"></div>
       <div class="table-wrapper" style="margin-top:20px;">
         <table>
           <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
@@ -658,7 +658,7 @@
     <div id="userTracking" class="section hidden">
       <h2>🗺️ Live Tracking Armada</h2>
       <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
-      <div id="mapUser"></div>
+      <div id="mapUser" class="map-container"></div>
       <div class="table-wrapper" style="margin-top:20px;">
         <table>
           <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
@@ -760,7 +760,7 @@
     <div id="driverTracking" class="section hidden">
       <h2>🗺️ Live Tracking Armada</h2>
       <p style="color:var(--gray);margin-bottom:15px;">Pantau posisi armada kami secara real-time</p>
-      <div id="mapDriver"></div>
+      <div id="mapDriver" class="map-container"></div>
       <div class="table-wrapper" style="margin-top:20px;">
         <table>
           <thead><tr><th>Armada</th><th>Driver</th><th>Terakhir Update</th><th>Status</th></tr></thead>
@@ -786,7 +786,7 @@
       <h2>🚛 Driver Tracking</h2>
       <p class="subtitle">Kirim Lokasi Real-time ke Kantor</p>
       
-      <form id="driverForm" onsubmit="startDriverTracking(e)">
+      <form id="driverForm" onsubmit="startDriverTracking(event)">
         <div class="form-group">
           <label>Nama Driver</label>
           <input type="text" id="driverName" required placeholder="Contoh: Budi">
@@ -870,7 +870,7 @@
 <div id="photoModal" class="modal" onclick="closePhotoModal()">
   <div class="modal-content" style="max-width:900px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closePhotoModal()">×</button>
-    <h2> Galeri Foto</h2>
+    <h2>🖼️ Galeri Foto</h2>
     <div id="photoViewer"></div>
   </div>
 </div>
@@ -898,7 +898,7 @@ const db = firebase.firestore();
 let dataSampah = [];
 let currentUser = null;
 let currentUserRole = 'user';
-let pubChart, admChart, reportChart, usrChart, userReportChart;
+const chartRegistry = {}; // 🔧 FIX: ganti window[canvasId] supaya tidak bentrok dgn elemen HTML
 let selectedFiles = []; 
 let editFiles = [];
 let editExistingPhotos = []; 
@@ -930,7 +930,8 @@ function initApp() {
   document.getElementById('reportMonth').value = monthStr;
   document.getElementById('userReportMonth').value = monthStr;
   
-  const weekAgo = new Date(today.setDate(today.getDate() - 7));
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
   document.getElementById('reportDateFrom').valueAsDate = weekAgo;
   document.getElementById('reportDateTo').valueAsDate = new Date();
   document.getElementById('userReportDateFrom').valueAsDate = weekAgo;
@@ -1083,6 +1084,7 @@ async function doFirebaseLogin(e) {
   try {
     await auth.signInWithEmailAndPassword(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
     toast('Login berhasil!');
+    hideLoading();
   } catch(err) {
     document.getElementById('loginError').textContent = '❌ ' + getAuthErrorMessage(err.code);
     document.getElementById('loginError').style.display = 'block';
@@ -1122,6 +1124,7 @@ function subscribeToData() {
     hideLoading();
   }, err => {
     console.error('Firestore error:', err);
+    toast('❌ Error data: ' + err.message, 'error');
     hideLoading();
   });
 }
@@ -1291,9 +1294,9 @@ function handleFileSelect(event) {
 function renderFileList() {
   const containerId = currentUserRole === 'driver' ? 'dFileList' : 'fileList';
   document.getElementById(containerId).innerHTML = selectedFiles.map((f, idx) => `
-    <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
+    <div class="file-item">
       <img src="${f.dataUrl}" alt="${f.name}">
-      <div class="remove-file" onclick="event.stopPropagation(); removeFile(${idx})">×</div>
+      <div class="remove-file" onclick="removeFile(${idx})">×</div>
     </div>
   `).join('');
 }
@@ -1316,9 +1319,9 @@ function handleEditFileSelect(event) {
 
 function renderEditFileList() {
   document.getElementById('eFileList').innerHTML = editFiles.map((f, idx) => `
-    <div class="file-item" onclick="viewPhoto('${f.dataUrl.replace(/'/g, "\\'")}')">
+    <div class="file-item">
       <img src="${f.dataUrl}" alt="${f.name}">
-      <div class="remove-file" onclick="event.stopPropagation(); removeEditFile(${idx})">×</div>
+      <div class="remove-file" onclick="removeEditFile(${idx})">×</div>
     </div>
   `).join('');
 }
@@ -1329,7 +1332,7 @@ function renderEditExistingPhotos() {
   const container = document.getElementById('eExistingPhotos');
   if (editExistingPhotos.length === 0) { container.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">Belum ada foto</p>'; return; }
   container.innerHTML = editExistingPhotos.map((foto, idx) => `
-    <div class="photo-item" onclick="viewPhoto('${foto.replace(/'/g, "\\'")}')">
+    <div class="photo-item" onclick="viewPhoto('${foto}')">
       <img src="${foto}" alt="Foto ${idx+1}">
     </div>
   `).join('');
@@ -1439,6 +1442,7 @@ function renderUserList() {
   }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:30px;">Belum ada data.</td></tr>';
 }
 
+// 🔧 FIX: pakai chartRegistry, bukan window[canvasId]
 function renderChart(canvasId, isBar) {
   const sorted = [...dataSampah].sort((a,b) => a.tanggal.localeCompare(b.tanggal)).slice(-7);
   if (sorted.length === 0) return;
@@ -1446,9 +1450,9 @@ function renderChart(canvasId, isBar) {
   const chartEl = document.getElementById(canvasId);
   if (!chartEl) return;
   
-  if (window[canvasId]) window[canvasId].destroy();
+  if (chartRegistry[canvasId]) chartRegistry[canvasId].destroy();
   
-  window[canvasId] = new Chart(chartEl, {
+  chartRegistry[canvasId] = new Chart(chartEl, {
     type: isBar ? 'bar' : 'line',
     data: {
       labels: sorted.map(d=>d.tanggal),
@@ -1473,13 +1477,10 @@ function toggleCustomDate() {
   document.getElementById('customDateGroup').classList.add('hidden');
   document.getElementById('customDateGroup2').classList.add('hidden');
   
-  if (period === 'daily') {
-    document.getElementById('dailyDateGroup').classList.remove('hidden');
-  } else if (period === 'weekly') {
-    document.getElementById('weeklyDateGroup').classList.remove('hidden');
-  } else if (period === 'monthly') {
-    document.getElementById('monthlyDateGroup').classList.remove('hidden');
-  } else if (period === 'custom') {
+  if (period === 'daily') document.getElementById('dailyDateGroup').classList.remove('hidden');
+  else if (period === 'weekly') document.getElementById('weeklyDateGroup').classList.remove('hidden');
+  else if (period === 'monthly') document.getElementById('monthlyDateGroup').classList.remove('hidden');
+  else if (period === 'custom') {
     document.getElementById('customDateGroup').classList.remove('hidden');
     document.getElementById('customDateGroup2').classList.remove('hidden');
   }
@@ -1603,9 +1604,9 @@ function generateReport() {
     `).join('');
   }
   
-  if (reportChart) reportChart.destroy();
+  if (chartRegistry['reportChart']) chartRegistry['reportChart'].destroy();
   if (chartLabels.length > 0) {
-    reportChart = new Chart(document.getElementById('reportChart'), {
+    chartRegistry['reportChart'] = new Chart(document.getElementById('reportChart'), {
       type: 'line',
       data: {
         labels: chartLabels,
@@ -1631,13 +1632,10 @@ function toggleUserCustomDate() {
   document.getElementById('userCustomDateGroup').classList.add('hidden');
   document.getElementById('userCustomDateGroup2').classList.add('hidden');
   
-  if (period === 'daily') {
-    document.getElementById('userDailyDateGroup').classList.remove('hidden');
-  } else if (period === 'weekly') {
-    document.getElementById('userWeeklyDateGroup').classList.remove('hidden');
-  } else if (period === 'monthly') {
-    document.getElementById('userMonthlyDateGroup').classList.remove('hidden');
-  } else if (period === 'custom') {
+  if (period === 'daily') document.getElementById('userDailyDateGroup').classList.remove('hidden');
+  else if (period === 'weekly') document.getElementById('userWeeklyDateGroup').classList.remove('hidden');
+  else if (period === 'monthly') document.getElementById('userMonthlyDateGroup').classList.remove('hidden');
+  else if (period === 'custom') {
     document.getElementById('userCustomDateGroup').classList.remove('hidden');
     document.getElementById('userCustomDateGroup2').classList.remove('hidden');
   }
@@ -1761,9 +1759,9 @@ function generateUserReport() {
     `).join('');
   }
   
-  if (userReportChart) userReportChart.destroy();
+  if (chartRegistry['userReportChart']) chartRegistry['userReportChart'].destroy();
   if (chartLabels.length > 0) {
-    userReportChart = new Chart(document.getElementById('userReportChart'), {
+    chartRegistry['userReportChart'] = new Chart(document.getElementById('userReportChart'), {
       type: 'line',
       data: {
         labels: chartLabels,
@@ -1805,17 +1803,16 @@ function initMap(mapId) {
 function listenToLiveTracking(tableBodyId, mapInstance, isPublic = false) {
   db.collection('live_tracking').where('isActive', '==', true).onSnapshot(snapshot => {
     const tbody = document.getElementById(tableBodyId);
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     if (snapshot.empty) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray);">Tidak ada armada aktif</td></tr>';
-      if (isPublic) {
-        document.getElementById('mapOverlay').style.display = 'flex';
-      }
+      const overlay = document.getElementById('mapOverlay');
+      if (isPublic && overlay) overlay.style.display = 'flex';
     } else {
-      if (isPublic) {
-        document.getElementById('mapOverlay').style.display = 'none';
-      }
+      const overlay = document.getElementById('mapOverlay');
+      if (isPublic && overlay) overlay.style.display = 'none';
     }
     
     snapshot.forEach(doc => {
