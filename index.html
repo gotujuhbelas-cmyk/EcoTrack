@@ -187,7 +187,7 @@ tr:hover{background:#f9f9f9}
     </div>
     <div id="tentang" class="section">
       <h2>🏢 Tentang Kami</h2>
-      <p><b>CV REZEKI AMANAH JAYA Group</b> adalah mitra terpercaya dalam pengelolaan sampah berkelanjutan. Kami berkomitmen memisahkan sampah organik untuk diolah dan meminimalkan residu ke TPA.</p>
+      <p><b>CV REZEKI AMANAH JAYA Group</b> adalah mitra terpercaya dalam pengelolaan sampah berkelanjutan.</p>
     </div>
   </div>
   <div class="footer"><p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p><p style="font-size:.8rem">The Hood, Summarecon Serpong - BSD City</p></div>
@@ -211,7 +211,7 @@ tr:hover{background:#f9f9f9}
   </div>
 </div>
 
-<!-- ============ DASHBOARD (ADMIN/USER/DRIVER) ============ -->
+<!-- ============ DASHBOARD ============ -->
 <div id="dashboardView" class="hidden">
   <nav class="navbar">
     <div class="logo">
@@ -307,7 +307,7 @@ tr:hover{background:#f9f9f9}
   <div class="footer"><p>EcoTRACK © 2025 - CV REZEKI AMANAH JAYA Group</p></div>
 </div>
 
-<!-- ============ DRIVER SHARE (PUBLIC) ============ -->
+<!-- ============ DRIVER SHARE ============ -->
 <div id="driverTrackingView" class="hidden">
   <div class="login-container">
     <div class="login-box" style="max-width:560px">
@@ -472,7 +472,7 @@ function renderPublic(){
   document.getElementById('pubResidue').textContent=dataSampah.reduce((a,b)=>a+Number(b.residu||0),0).toFixed(1);
   document.getElementById('pubTable').innerHTML = dataSampah.slice(0,5).map(d=>{
     const hp=d.diolah!==null&&d.diolah!==undefined;
-    return `<tr><td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat}</td><td><span class="status-badge ${hp?'status-diolah':'status-pending'}">${hp?d.diolah+' kg diolah':'Menunggu'}</span></td><td>${d.fotos&&d.fotos.length?'📷 '+d.fotos.length:'-'}</td></tr>`;
+    return '<tr><td>'+d.tanggal+'</td><td>'+d.jenis+'</td><td>'+d.berat+'</td><td><span class="status-badge '+(hp?'status-diolah':'status-pending')+'">'+(hp?d.diolah+' kg diolah':'Menunggu')+'</span></td><td>'+(d.fotos&&d.fotos.length?'📷 '+d.fotos.length:'-')+'</td></tr>';
   }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:30px">Belum ada data</td></tr>';
   renderChart('pubChart', true);
 }
@@ -480,11 +480,11 @@ function renderDashTable(){
   const isAdmin = currentUserRole==='admin';
   document.getElementById('dashDataTable').innerHTML = dataSampah.map(d=>{
     const hp=d.diolah!==null&&d.diolah!==undefined, fc=d.fotos?d.fotos.length:0;
-    return `<tr><td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat} kg</td>
-    <td><span class="status-badge ${hp?'status-diolah':'status-pending'}">${hp?d.diolah:'-'}</span></td>
-    <td>${d.residu!==null&&d.residu!==undefined?d.residu:'-'}</td><td>${d.petugas}</td>
-    <td>${fc?`<span style="cursor:pointer;color:var(--primary)" onclick="viewRecordPhotos('${d.id}')">📷 ${fc}</span>`:'-'}</td>
-    ${isAdmin?`<td><button class="btn btn-warning btn-small" onclick="editData('${d.id}')">✏️</button> <button class="btn btn-danger btn-small" onclick="deleteData('${d.id}')">🗑️</button></td>`:''}</tr>`;
+    return '<tr><td>'+d.tanggal+'</td><td>'+d.jenis+'</td><td>'+d.berat+' kg</td>'+
+    '<td><span class="status-badge '+(hp?'status-diolah':'status-pending')+'">'+(hp?d.diolah:'-')+'</span></td>'+
+    '<td>'+(d.residu!==null&&d.residu!==undefined?d.residu:'-')+'</td><td>'+d.petugas+'</td>'+
+    '<td>'+(fc?'<span style="cursor:pointer;color:var(--primary)" onclick="viewRecordPhotos(\''+d.id+'\')">📷 '+fc+'</span>':'-')+'</td>'+
+    (isAdmin?'<td><button class="btn btn-warning btn-small" onclick="editData(\''+d.id+'\')">✏️</button> <button class="btn btn-danger btn-small" onclick="deleteData(\''+d.id+'\')">🗑️</button></td>':'')+'</tr>';
   }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:30px">Belum ada data.</td></tr>';
 }
 function renderChart(canvasId, isBar){
@@ -521,8 +521,8 @@ async function addData(e){
 }
 function editData(id){
   const r=dataSampah.find(d=>d.id===id); if(!r)return;
-  eId.value=r.id; eTanggal.value=r.tanggal; eJenis.value=r.jenis; eBerat.value=r.berat;
-  eDiolah.value=r.diolah||''; eResidu.value=r.residu||''; ePetugas.value=r.petugas; eCatatan.value=r.catatan||'';
+  document.getElementById('eId').value=r.id; document.getElementById('eTanggal').value=r.tanggal; document.getElementById('eJenis').value=r.jenis; document.getElementById('eBerat').value=r.berat;
+  document.getElementById('eDiolah').value=r.diolah||''; document.getElementById('eResidu').value=r.residu||''; document.getElementById('ePetugas').value=r.petugas; document.getElementById('eCatatan').value=r.catatan||'';
   editExistingPhotos=r.fotos||[]; editFiles=[];
   renderEditExistingPhotos(); renderEditFileList();
   document.getElementById('editModal').classList.add('active');
@@ -533,10 +533,10 @@ async function updateData(e){
   showLoading('Mengupdate...');
   try{
     const baru=[]; for(const f of editFiles) baru.push(await compressImage(f.file));
-    await db.collection('sampah').doc(eId.value).update({
-      tanggal:eTanggal.value, jenis:eJenis.value, berat:parseFloat(eBerat.value)||0,
-      diolah:eDiolah.value?parseFloat(eDiolah.value):null, residu:eResidu.value?parseFloat(eResidu.value):null,
-      petugas:ePetugas.value, catatan:eCatatan.value, fotos:[...editExistingPhotos,...baru],
+    await db.collection('sampah').doc(document.getElementById('eId').value).update({
+      tanggal:document.getElementById('eTanggal').value, jenis:document.getElementById('eJenis').value, berat:parseFloat(document.getElementById('eBerat').value)||0,
+      diolah:document.getElementById('eDiolah').value?parseFloat(document.getElementById('eDiolah').value):null, residu:document.getElementById('eResidu').value?parseFloat(document.getElementById('eResidu').value):null,
+      petugas:document.getElementById('ePetugas').value, catatan:document.getElementById('eCatatan').value, fotos:[...editExistingPhotos,...baru],
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     closeEditModal(); toast('✅ Data diupdate!');
@@ -566,7 +566,7 @@ function handleFileSelect(ev){
   ev.target.value='';
 }
 function renderFileList(){
-  document.getElementById('fileList').innerHTML=selectedFiles.map((f,i)=>`<div class="file-item"><img src="${f.dataUrl}"><div class="remove-file" onclick="removeFile(${i})">×</div></div>`).join('');
+  document.getElementById('fileList').innerHTML=selectedFiles.map((f,i)=>'<div class="file-item"><img src="'+f.dataUrl+'"><div class="remove-file" onclick="removeFile('+i+')">×</div></div>').join('');
 }
 function removeFile(i){ selectedFiles.splice(i,1); renderFileList(); }
 function handleEditFileSelect(ev){
@@ -576,15 +576,15 @@ function handleEditFileSelect(ev){
   ev.target.value='';
 }
 function renderEditFileList(){
-  document.getElementById('eFileList').innerHTML=editFiles.map((f,i)=>`<div class="file-item"><img src="${f.dataUrl}"><div class="remove-file" onclick="removeEditFile(${i})">×</div></div>`).join('');
+  document.getElementById('eFileList').innerHTML=editFiles.map((f,i)=>'<div class="file-item"><img src="'+f.dataUrl+'"><div class="remove-file" onclick="removeEditFile('+i+')">×</div></div>').join('');
 }
 function removeEditFile(i){ editFiles.splice(i,1); renderEditFileList(); }
 function renderEditExistingPhotos(){
-  document.getElementById('eExistingPhotos').innerHTML=editExistingPhotos.length?editExistingPhotos.map((f,i)=>`<div class="photo-item" onclick="viewPhoto('${f}')"><img src="${f}"></div>`).join(''):'<p style="color:var(--gray);font-size:.9rem">Belum ada foto</p>';
+  document.getElementById('eExistingPhotos').innerHTML=editExistingPhotos.length?editExistingPhotos.map((f,i)=>'<div class="photo-item" onclick="viewPhoto(\''+f+'\')"><img src="'+f+'"></div>').join(''):'<p style="color:var(--gray);font-size:.9rem">Belum ada foto</p>';
 }
-function viewPhoto(src){ document.getElementById('photoViewer').innerHTML=`<img src="${src}" class="full-image">`; document.getElementById('photoModal').classList.add('active'); }
+function viewPhoto(src){ document.getElementById('photoViewer').innerHTML='<img src="'+src+'" class="full-image">'; document.getElementById('photoModal').classList.add('active'); }
 function closePhotoModal(){ document.getElementById('photoModal').classList.remove('active'); }
-function viewRecordPhotos(id){ const r=dataSampah.find(d=>d.id===id); if(r&&r.fotos&&r.fotos.length){ document.getElementById('photoViewer').innerHTML=r.fotos.map(f=>`<img src="${f}" class="full-image" style="margin-bottom:10px">`).join(''); document.getElementById('photoModal').classList.add('active'); } }
+function viewRecordPhotos(id){ const r=dataSampah.find(d=>d.id===id); if(r&&r.fotos&&r.fotos.length){ document.getElementById('photoViewer').innerHTML=r.fotos.map(f=>'<img src="'+f+'" class="full-image" style="margin-bottom:10px">').join(''); document.getElementById('photoModal').classList.add('active'); } }
 function closeEditModal(){ document.getElementById('editModal').classList.remove('active'); editFiles=[]; editExistingPhotos=[]; }
 
 // ================= REPORT =================
@@ -624,7 +624,7 @@ function generateReport(){
   document.getElementById('rptTotalWeight').textContent=sum(fd,'berat').toFixed(1);
   document.getElementById('rptTotalProcessed').textContent=sum(fd,'diolah').toFixed(1);
   document.getElementById('rptTotalResidue').textContent=sum(fd,'residu').toFixed(1);
-  document.getElementById('reportTableBody').innerHTML=fd.map(d=>`<tr><td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat}</td><td>${d.diolah!==null&&d.diolah!==undefined?d.diolah:'-'}</td><td>${d.residu!==null&&d.residu!==undefined?d.residu:'-'}</td><td>${d.petugas}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray)">Tidak ada data untuk periode ini</td></tr>';
+  document.getElementById('reportTableBody').innerHTML=fd.map(d=>'<tr><td>'+d.tanggal+'</td><td>'+d.jenis+'</td><td>'+d.berat+'</td><td>'+(d.diolah!==null&&d.diolah!==undefined?d.diolah:'-')+'</td><td>'+(d.residu!==null&&d.residu!==undefined?d.residu:'-')+'</td><td>'+d.petugas+'</td></tr>').join('')||'<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--gray)">Tidak ada data untuk periode ini</td></tr>';
   if(chartRegistry['reportChart'])chartRegistry['reportChart'].destroy();
   if(labels.length){ chartRegistry['reportChart']=new Chart(document.getElementById('reportChart'),{type:'line',data:{labels,datasets:[
     {label:'Diolah (kg)',data:cd,borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,.1)',fill:true,tension:.3},
@@ -699,14 +699,13 @@ function startDriverTracking(e){
     const nowMs=Date.now();
     const last=routePath[routePath.length-1];
     const moved=!last||haversineM(last,pt)>=8;
-    const timeDue=(nowMs-lastRecordTime)>20000; // rekam tiap 20 dtk walau diam
+    const timeDue=(nowMs-lastRecordTime)>20000;
     if(moved||timeDue){
       if(last)routeDistance+=haversineM(last,pt);
       routePath.push(pt); lastRecordTime=nowMs;
       if(routePath.length>5000)routePath.shift();
     }
     updateShareMap(pt);
-    // 💾 AUTOSAVE rute tiap ±30 detik
     if(routePath.length>=2){
       if(!savedRouteId){
         db.collection('routes').add(routeBaseDoc(driverName,vehicleName)).then(ref=>{ savedRouteId=ref.id; lastSaveTime=Date.now(); }).catch(err=>console.error('autosave add:',err));
@@ -753,4 +752,44 @@ function stopDriverTracking(){
     const finalData={ path:routePath, distanceM:Math.round(routeDistance), pointCount:routePath.length, endTime:new Date().toLocaleString('id-ID'), isActiveRoute:false };
     const p=savedRouteId ? db.collection('routes').doc(savedRouteId).update(finalData) : db.collection('routes').add(Object.assign(routeBaseDoc(driverName,vehicleName),finalData));
     p.then(()=>{ st.innerHTML='⏹️ Berhenti. 🛣️ Rute TERSIMPAN: '+routePath.length+' titik, ±'+(routeDistance/1000).toFixed(2)+' km'; loadRouteHistory(); })
-    .catch(err=>{ st.innerHTML='⏹️ Berhenti, rute GAGAL disimpan: '+err.message+'
+    .catch(err=>{ st.innerHTML='⏹️ Berhenti, rute GAGAL disimpan: '+err.message+'<br><small>Publish Firestore Rules terbaru!</small>'; });
+  } else {
+    st.innerHTML='⏹️ Berhenti. (Rute tidak tersimpan, titik < 2)';
+  }
+  if(routeDocId)db.collection('live_tracking').doc(routeDocId).update({isActive:false,timestamp:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+  if(maps['mapShare']&&sharePolyline&&routePath.length>1)maps['mapShare'].fitBounds(sharePolyline.getBounds(),{padding:[30,30]});
+  routePath=[]; routeDistance=0; routeStartTime=null; savedRouteId=null;
+  document.getElementById('btnStartTrack').style.display='block';
+  document.getElementById('btnStopTrack').style.display='none';
+}
+
+// ---- RIWAYAT RUTE ----
+function loadRouteHistory(){
+  db.collection('routes').orderBy('createdAt','desc').limit(20).get().then(snap=>{
+    const rows=[]; snap.forEach(d=>rows.push(Object.assign({id:d.id},d.data())));
+    window.__savedRoutes=rows;
+    const tb=document.getElementById('routeTableDash'); if(!tb)return;
+    tb.innerHTML=rows.map(r=>'<tr><td>'+(r.startTime||'-')+'</td><td>'+(r.endTime?'✅ '+r.endTime:'🔴 Live')+'</td><td><b>'+(r.vehicleName||'-')+'</b></td><td>'+(r.driverName||'-')+'</td><td>'+((r.distanceM||0)/1000).toFixed(2)+' km</td><td>'+(r.pointCount||(r.path?r.path.length:0))+'</td><td><button class="btn btn-small" onclick="viewSavedRoute(\''+r.id+'\')">🗺️ Lihat</button></td></tr>').join('')||'<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:15px">Belum ada rute tersimpan</td></tr>';
+  }).catch(err=>console.error('loadRouteHistory:',err));
+}
+function viewSavedRoute(routeId){
+  const map=maps['mapDash'];
+  const r=(window.__savedRoutes||[]).find(x=>x.id===routeId);
+  if(!map){alert('Peta belum siap, scroll ke bagian Live Tracking sebentar.');return;}
+  if(!r||!r.path||r.path.length<2){alert('Rute tidak valid.');return;}
+  if(savedRouteLayer.length)savedRouteLayer.forEach(l=>map.removeLayer(l));
+  const line=L.polyline(r.path,{color:'#ff9800',weight:5,opacity:.9}).addTo(map);
+  const s=L.marker(r.path[0],{icon:flagIcon('🟢')}).addTo(map).bindPopup('<b>START</b><br>'+(r.startTime||''));
+  const f=L.marker(r.path[r.path.length-1],{icon:flagIcon('🏁')}).addTo(map).bindPopup('<b>FINISH</b><br>'+(r.endTime||''));
+  savedRouteLayer=[line,s,f];
+  map.fitBounds(line.getBounds(),{padding:[40,40]});
+  toast('🗺️ Rute '+(r.vehicleName||'')+' ditampilkan');
+}
+
+// ================= UI =================
+function showLoading(t='Memuat...'){ document.getElementById('loadingText').textContent=t; document.getElementById('loadingOverlay').classList.remove('hidden'); }
+function hideLoading(){ document.getElementById('loadingOverlay').classList.add('hidden'); }
+function toast(m,t='success'){ const d=document.createElement('div'); d.className='toast '+(t==='error'?'error':''); d.textContent=m; document.body.appendChild(d); setTimeout(()=>d.remove(),3500); }
+</script>
+</body>
+</html>
