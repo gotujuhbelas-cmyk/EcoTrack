@@ -1,11 +1,13 @@
-// ===== ANTI-MACET v3 =====
+// ===== ANTI-MACET v4 (path disimpan sebagai string, bukan nested array) =====
 var AM_PROJECT = 'ecotrack-184c2';
 var AM = {watchId:null, path:[], dist:0, start:null, docId:null, driver:'', vehicle:'', ui:null, lastRec:0, lastSave:0, routeId:null, marker:null, line:null};
 
+function amParse(p){ if(!p) return []; if(typeof p==='string') return p.split(';').map(function(s){return s.split(',').map(Number);}); return p; }
+function amToStr(path){ return path.map(function(p){return p[0]+','+p[1];}).join(';'); }
 function amFv(v){
   if (typeof v === 'number') return Number.isInteger(v) ? {integerValue:String(v)} : {doubleValue:v};
   if (typeof v === 'boolean') return {booleanValue:v};
-  if (Array.isArray(v)) return {arrayValue:{values:v.map(function(x){return Array.isArray(x)?{arrayValue:{values:x.map(function(n){return {doubleValue:n};})}}:amFv(x);})}};
+  if (Array.isArray(v)) return {arrayValue:{values:v.map(amFv)}};
   return {stringValue:String(v)};
 }
 function amWrite(col, docId, obj){
@@ -23,7 +25,7 @@ function amWrite(col, docId, obj){
 }
 function amRouteDoc(final){
   return {driverName:AM.driver, vehicleName:AM.vehicle, startTime:AM.start.toLocaleString('id-ID'),
-    endTime:final?new Date().toLocaleString('id-ID'):null, path:AM.path, distanceM:Math.round(AM.dist),
+    endTime:final?new Date().toLocaleString('id-ID'):null, path:amToStr(AM.path), distanceM:Math.round(AM.dist),
     pointCount:AM.path.length, isActiveRoute:!final, createdAt:new Date().toISOString()};
 }
 function amMap(pt, mapId){
@@ -32,6 +34,54 @@ function amMap(pt, mapId){
   if(!AM.line) AM.line=L.polyline([pt],{color:'#2e7d32',weight:4,opacity:.9}).addTo(maps[mapId]); else AM.line.setLatLngs(AM.path.length?AM.path:[pt]);
   maps[mapId].invalidateSize(); maps[mapId].panTo(pt);
 }
+
+// ---- OVERRIDE: pembaca monitoring (pakai format string) ----
+function listenToLiveTracking(tableBodyId, mapId, isPublic){
+  if(liveSubs[mapId]) return;
+  markers[mapId]={}; polylines[mapId]={};
+  liveSubs[mapId]=db.collection('live_tracking').where('isActive','==',true).onSnapshot(function(snap){
+    var map=maps[mapId], tbody=tableBodyId?document.getElementById(tableBodyId):null, overlay=isPublic?document.getElementById('mapOverlay'):null;
+    var seen=[], rows='';
+    if(snap.empty){
+      if(tbody) tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray)">Tidak ada armada aktif</td></tr>';
+      if(overlay) overlay.style.display='flex';
+    } else {
+      if(overlay) overlay.style.display='none';
+      snap.forEach(function(doc){
+        var d=doc.data(), id=doc.id; seen.push(id);
+        var pts=amParse(d.path);
+        var popup='<b>'+d.vehicleName+'</b><br>Driver: '+d.driverName+'<br>Update: '+(d.localTime||'-')+'<br>🛣️ '+((d.distanceM||0)/1000).toFixed(2)+' km';
+        if(map){
+          if(markers[mapId][id]){ markers[mapId][id].setLatLng([d.lat,d.lng]); markers[mapId][id].setPopupContent(popup); }
+          else markers[mapId][id]=L.marker([d.lat,d.lng],{icon:truckIcon()}).addTo(map).bindPopup(popup);
+          if(pts.length>1){ if(polylines[mapId][id]) polylines[mapId][id].setLatLngs(pts); else polylines[mapId][id]=L.polyline(pts,{color:'#2e7d32',weight:4,opacity:.85}).addTo(map); }
+        }
+        rows+='<tr><td style="font-weight:bold">'+d.vehicleName+'</td><td>'+d.driverName+'</td><td style="color:var(--gray)">'+(d.localTime||'Baru saja')+'</td><td><span class="status-badge status-diolah">🟢 Aktif</span></td></tr>';
+      });
+      if(tbody) tbody.innerHTML=rows;
+    }
+    if(map){
+      Object.keys(markers[mapId]).forEach(function(id){ if(seen.indexOf(id)<0){ map.removeLayer(markers[mapId][id]); delete markers[mapId][id]; } });
+      Object.keys(polylines[mapId]).forEach(function(id){ if(seen.indexOf(id)<0){ map.removeLayer(polylines[mapId][id]); delete polylines[mapId][id]; } });
+    }
+  }, function(err){ toast('❌ Live tracking: '+err.message,'error'); });
+}
+function viewSavedRoute(routeId){
+  var map=maps['mapDash'];
+  var r=(window.__savedRoutes||[]).find(function(x){return x.id===routeId;});
+  if(!map){ alert('Peta belum siap, scroll ke Live Tracking sebentar'); return; }
+  var pts=amParse(r?r.path:null);
+  if(!r||pts.length<2){ alert('Rute tidak valid'); return; }
+  if(savedRouteLayer&&savedRouteLayer.length) savedRouteLayer.forEach(function(l){map.removeLayer(l);});
+  var line=L.polyline(pts,{color:'#ff9800',weight:5,opacity:.9}).addTo(map);
+  var s=L.marker(pts[0],{icon:flagIcon('🟢')}).addTo(map).bindPopup('<b>START</b><br>'+(r.startTime||''));
+  var f=L.marker(pts[pts.length-1],{icon:flagIcon('🏁')}).addTo(map).bindPopup('<b>FINISH</b><br>'+(r.endTime||''));
+  savedRouteLayer=[line,s,f];
+  map.fitBounds(line.getBounds(),{padding:[40,40]});
+  toast('🗺️ Rute '+(r.vehicleName||'')+' ditampilkan');
+}
+
+// ---- SHARE ----
 function amStart(ui, driver, vehicle){
   if(!driver||!vehicle){ui.status.innerHTML='❌ Isi nama driver & armada';return;}
   if(!navigator.geolocation){ui.status.innerHTML='❌ Browser tidak support GPS';return;}
@@ -51,7 +101,7 @@ function amStart(ui, driver, vehicle){
     }
     amMap(pt, ui.mapId);
     var payload={driverName:AM.driver, vehicleName:AM.vehicle, lat:lat, lng:lng, accuracy:acc,
-      path:AM.path, distanceM:Math.round(AM.dist), startTime:AM.start.toLocaleString('id-ID'),
+      path:amToStr(AM.path), distanceM:Math.round(AM.dist), startTime:AM.start.toLocaleString('id-ID'),
       localTime:new Date().toLocaleString('id-ID'), isActive:true};
     amWrite('live_tracking', AM.docId, payload).then(function(){
       ui.status.innerHTML='✅ TERKIRIM!<br>Lat: '+lat.toFixed(5)+', Lng: '+lng.toFixed(5)+'<br>Akurasi: ±'+Math.round(acc)+'m<br>🛣️ Titik: '+AM.path.length+' | ±'+(AM.dist/1000).toFixed(2)+' km<br><small>Biarkan halaman terbuka</small>';
@@ -91,8 +141,9 @@ function stopSharing(){
     }).catch(function(err){ if(ui) ui.status.innerHTML='⏹️ Rute gagal disimpan: '+err.message; });
   } else if(ui){ ui.status.innerHTML='⏹️ Berhenti (titik < 2, rute tidak tersimpan)'; }
   if(AM.docId && AM.path.length){
-    var off={driverName:AM.driver, vehicleName:AM.vehicle, lat:AM.path[AM.path.length-1][0], lng:AM.path[AM.path.length-1][1],
-      path:AM.path, distanceM:Math.round(AM.dist), startTime:AM.start?AM.start.toLocaleString('id-ID'):'-',
+    var lastPt=AM.path[AM.path.length-1];
+    var off={driverName:AM.driver, vehicleName:AM.vehicle, lat:lastPt[0], lng:lastPt[1],
+      path:amToStr(AM.path), distanceM:Math.round(AM.dist), startTime:AM.start?AM.start.toLocaleString('id-ID'):'-',
       localTime:new Date().toLocaleString('id-ID'), isActive:false};
     amWrite('live_tracking', AM.docId, off).catch(function(){});
   }
