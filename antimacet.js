@@ -1,4 +1,4 @@
-// ===== ANTI-MACET v2: kirim lokasi via REST (HTTPS biasa) =====
+// ===== ANTI-MACET v3 =====
 var AM_PROJECT = 'ecotrack-184c2';
 var AM = {watchId:null, path:[], dist:0, start:null, docId:null, driver:'', vehicle:'', ui:null, lastRec:0, lastSave:0, routeId:null, marker:null, line:null};
 
@@ -10,10 +10,15 @@ function amFv(v){
 }
 function amWrite(col, docId, obj){
   var fields={}; Object.keys(obj).forEach(function(k){fields[k]=amFv(obj[k]);});
-  var url='https://firestore.googleapis.com/v1/projects/'+AM_PROJECT+'/databases/(default)/documents/'+col+(docId?('/'+encodeURIComponent(docId)):'');
-  return fetch(url,{method:docId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields})}).then(function(r){
-    if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status);});
-    return r.json();
+  var base='https://firestore.googleapis.com/v1/projects/'+AM_PROJECT+'/databases/(default)/documents/'+col;
+  var body=JSON.stringify({fields:fields});
+  function parse(r){ return r.text().then(function(t){ if(!r.ok) throw new Error('HTTP '+r.status+' '+t.slice(0,140)); return JSON.parse(t); }); }
+  var url=docId?base+'/'+encodeURIComponent(docId):base;
+  return fetch(url,{method:docId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:body}).then(function(r){
+    if(!r.ok && docId && (r.status===400||r.status===404)){
+      return fetch(base+'?documentId='+encodeURIComponent(docId),{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(parse);
+    }
+    return parse(r);
   });
 }
 function amRouteDoc(final){
