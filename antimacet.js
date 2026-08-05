@@ -1,9 +1,9 @@
-// ===== ANTI-MACET v1: kirim lokasi via REST (HTTPS biasa) =====
+// ===== ANTI-MACET v2: kirim lokasi via REST (HTTPS biasa) =====
 var AM_PROJECT = 'ecotrack-184c2';
 var AM = {watchId:null, path:[], dist:0, start:null, docId:null, driver:'', vehicle:'', ui:null, lastRec:0, lastSave:0, routeId:null, marker:null, line:null};
 
 function amFv(v){
-  if (typeof v === 'number') return Number.isInteger(v) ? {integerValue:v} : {doubleValue:v};
+  if (typeof v === 'number') return Number.isInteger(v) ? {integerValue:String(v)} : {doubleValue:v};
   if (typeof v === 'boolean') return {booleanValue:v};
   if (Array.isArray(v)) return {arrayValue:{values:v.map(function(x){return Array.isArray(x)?{arrayValue:{values:x.map(function(n){return {doubleValue:n};})}}:amFv(x);})}};
   return {stringValue:String(v)};
