@@ -1,8 +1,9 @@
 // ══════════════════════════════════════════════════════════════
-// adminctl.js — Admin Control Panel (COMPATIBLE VERSION)
+// adminctl.js — Admin Control Panel (FINAL v5)
+// Compatible dengan app.js, antimacet.js, dan amview.js
 // ══════════════════════════════════════════════════════════════
 
-// Helper: cek apakah user admin
+// ─── Helper: Cek apakah user admin ────────────────────────────
 function isAdminCtl() {
   return (typeof currentRole !== "undefined" && currentRole === "admin") ||
          (typeof currentUserRole !== "undefined" && currentUserRole === "admin");
