@@ -82,5 +82,38 @@ function amStart(ui,dr,vh){
       AM.path.push(pt);AM.lr=now;
     }
     amMap(pt,ui.mapId);
-    amW('live_tracking',AM.doc,{driverName:AM.dr,vehicleName:AM.vh,lat:la,lng:lo,accuracy:ac,path:amStr(AM.path),distanceM:Math.round(AM.dist),startTime:AM.t0.toLocaleString('id-ID'),localTime:new Date().toLocaleString('id-ID'),isActive:true}).then(function(){
-      ui.status.innerHTML='✅
+        amW('live_tracking',AM.doc,{driverName:AM.dr,vehicleName:AM.vh,lat:la,lng:lo,accuracy:ac,path:amStr(AM.path),distanceM:Math.round(AM.dist),startTime:AM.t0.toLocaleString('id-ID'),localTime:new Date().toLocaleString('id-ID'),isActive:true}).then(function(){
+      ui.status.innerHTML='✅ TERKIRIM! 🛣️ Titik: '+AM.path.length+' | ±'+(AM.dist/1000).toFixed(2)+' km<br><small>Biarkan halaman terbuka</small>';
+      if(AM.path.length>=2){
+        if(!AM.rid){amW('routes',null,amRD(false)).then(function(r){AM.rid=r.name.split('/').pop();AM.ls=now;}).catch(function(){});}
+        else if(now-AM.ls>30000){AM.ls=now;amW('routes',AM.rid,amRD(false)).catch(function(){});}
+      }
+    }).catch(function(e){ui.status.innerHTML='❌ Gagal kirim: '+e.message;});
+  },function(e){
+    var m=e.code===1?'Izin lokasi DITOLAK. Ketuk 🔒 di address bar → Site settings → Location → Allow':e.code===2?'GPS tidak tersedia. Nyalakan lokasi HP':e.code===3?'Timeout GPS':e.message;
+    ui.status.innerHTML='❌ '+m;
+    ui.btnStart.style.display='block';ui.btnStop.style.display='none';
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+function startPublicSharing(e){
+  e.preventDefault();
+  amStart({status:document.getElementById('driverStatus'),btnStart:document.getElementById('btnStartTrack'),btnStop:document.getElementById('btnStopTrack'),mapId:'mapShare'},document.getElementById('driverName').value.trim(),document.getElementById('vehicleName').value.trim());
+}
+function startDashSharing(){
+  amStart({status:document.getElementById('dsStatus'),btnStart:document.getElementById('btnStartDs'),btnStop:document.getElementById('btnStopDs'),mapId:'mapDashShare'},document.getElementById('dsDriverName').value.trim(),document.getElementById('dsVehicleName').value.trim());
+}
+function stopSharing(){
+  if(AM.w!==null)navigator.geolocation.clearWatch(AM.w);AM.w=null;
+  var ui=AM.ui;
+  if(AM.path.length>=2){
+    amW('routes',AM.rid||null,amRD(true)).then(function(){
+      if(ui)ui.status.innerHTML='⏹️ Rute TERSIMPAN: '+AM.path.length+' titik, ±'+(AM.dist/1000).toFixed(2)+' km';
+      loadRouteHistory();
+    }).catch(function(e){if(ui)ui.status.innerHTML='⏹️ Rute gagal disimpan: '+e.message;});
+  }else if(ui){ui.status.innerHTML='⏹️ Berhenti (titik < 2)';}
+  if(AM.doc&&AM.path.length){
+    var lp=AM.path[AM.path.length-1];
+    amW('live_tracking',AM.doc,{driverName:AM.dr,vehicleName:AM.vh,lat:lp[0],lng:lp[1],path:amStr(AM.path),distanceM:Math.round(AM.dist),startTime:AM.t0.toLocaleString('id-ID'),localTime:new Date().toLocaleString('id-ID'),isActive:false}).catch(function(){});
+  }
+  if(ui){ui.btnStart.style.display='block';ui.btnStop.style.display='none';}
+}
