@@ -1,72 +1,117 @@
-// antimacet.js — bagian 1: state, inisialisasi, helper
-// Dimuat SEBELUM amview.js karena mengekspos amP()
+// ══════════════════════════════════════════════════════════════
+// antimacet.js — EcoTRACK Driver Tracking
+// Versi final (compatible dengan index.html asli + adminctl.js)
+// ══════════════════════════════════════════════════════════════
 
-let amSession = null;          // { driverId, role, truckId, docId }
-let amPath = [];               // [{lat, lng, t}] array titik
-let amDist = 0;                // total jarak meter
+let amSession = null;          // { driverId, driverName, truckId, vehicleName, role, docId }
+let amPath = [];               // array {lat, lng, t}
+let amDist = 0;                // total jarak (meter)
 let amTimer = null;            // setInterval lokasi
-let amSaveTimer = null;        // setInterval save routes tiap 30s
+let amSaveTimer = null;        // setInterval autosave routes
 let amIsActive = false;
 let amLastPos = null;
 let amStartTime = null;
+let amUnsubscribe = null;      // listener Firestore stop dari admin
 
-// ========== amP() — dipakai oleh amview.js ==========
+// ═══════════════════════════════════════════
+// amP() — dipakai oleh amview.js
+// ═══════════════════════════════════════════
 function amP() {
   return amSession ? {
     active: amIsActive,
     path: amPath,
     distance: amDist,
     driverId: amSession.driverId,
-    truckId: amSession.truckId || null
+    driverName: amSession.driverName || "",
+    truckId: amSession.truckId || null,
+    vehicleName: amSession.vehicleName || ""
   } : null;
 }
 
-// ========== helper: encode path ke string ==========
+// ═══════════════════════════════════════════
+// Helpers: path ↔ string
+// ═══════════════════════════════════════════
 function encodePath(arr) {
   return arr.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(";");
 }
 function decodePath(str) {
   if (!str) return [];
-  return str.split(";").map(s => {
+  return str.split(";").filter(Boolean).map(s => {
     const [lat, lng] = s.split(",").map(Number);
     return { lat, lng, t: Date.now() };
   });
 }
 
-// ========== helper: cari tombol sharing di DOM ==========
-function getShareBtn() {
-  return document.querySelector("[data-am-btn]") ||
-         document.getElementById("btnStartSharing") ||
-         document.querySelector(".btn-share-location");
+// ═══════════════════════════════════════════
+// UI: tombol start/stop (2 set tombol di HTML)
+// ═══════════════════════════════════════════
+function _activeContext() {
+  // Cek halaman mana yang aktif
+  if (!document.getElementById("driverTrackingView").classList.contains("hidden")) {
+    return {
+      start: document.getElementById("btnStartTrack"),
+      stop:  document.getElementById("btnStopTrack"),
+      name:  document.getElementById("driverName"),
+      vehicle: document.getElementById("vehicleName"),
+      status: document.getElementById("driverStatus")
+    };
+  }
+  if (!document.getElementById("dashShare").classList.contains("hidden")) {
+    return {
+      start: document.getElementById("btnStartDs"),
+      stop:  document.getElementById("btnStopDs"),
+      name:  document.getElementById("dsDriverName"),
+      vehicle: document.getElementById("dsVehicleName"),
+      status: document.getElementById("dsStatus")
+    };
+  }
+  return { start: null, stop: null, name: null, vehicle: null, status: null };
 }
 
-function updateBtnUI(label, cls) {
-  const btn = getShareBtn();
-  if (!btn) return;
-  btn.innerHTML = label;
-  btn.className = btn.className.replace(/btn-(success|warning|danger|primary)/g, "");
-  btn.classList.add(cls || "btn-warning");
+function _setStatus(msg, color) {
+  const ctx = _activeContext();
+  if (ctx.status) {
+    ctx.status.innerHTML = msg;
+    ctx.status.style.color = color || "var(--gray)";
+  }
 }
 
-// ========== inisialisasi saat halaman dimuat ==========
+function _showStopMode() {
+  const ctx = _activeContext();
+  if (ctx.start) ctx.start.style.display = "none";
+  if (ctx.stop)  ctx.stop.style.display = "";
+}
+function _showStartMode(label) {
+  const ctx = _activeContext();
+  if (ctx.start) {
+    ctx.start.style.display = "";
+    ctx.start.textContent = label || "📡 Mulai Share Lokasi";
+  }
+  if (ctx.stop) ctx.stop.style.display = "none";
+}
+
+// ═══════════════════════════════════════════
+// Inisialisasi: restore session dari localStorage
+// ═══════════════════════════════════════════
 function amInit() {
+  if (typeof db === "undefined") {
+    setTimeout(amInit, 500);
+    return;
+  }
   const saved = localStorage.getItem("am_session");
   if (!saved) return;
 
-  try {
-    amSession = JSON.parse(saved);
-  } catch (e) {
-    localStorage.removeItem("am_session");
-    return;
-  }
+  let sess;
+  try { sess = JSON.parse(saved); }
+  catch { localStorage.removeItem("am_session"); return; }
 
-  // Cek apakah trip masih aktif di Firestore
-  if (!db) return console.warn("[antimacet] db belum siap");
-  db.collection("live_tracking").doc(amSession.docId || amSession.driverId)
+  amSession = sess;
+
+  // Cek di Firestore apakah trip masih aktif
+  db.collection("live_tracking").doc(sess.docId || sess.driverId)
     .get()
     .then(doc => {
       if (doc.exists && doc.data().isActive === true) {
-        // Restore path & distance dari dokumen lama
         const data = doc.data();
         amPath = decodePath(data.path || "");
         amDist = data.totalDistance || 0;
@@ -74,54 +119,60 @@ function amInit() {
         amIsActive = true;
         amLastPos = amPath.length ? amPath[amPath.length - 1] : null;
 
-        updateBtnUI("🔄 Lanjutkan Berbagi Lokasi", "btn-success");
-        toast("Sesi ditemukan. Tekan tombol untuk melanjutkan tracking.", "info");
-        loadRouteHistory && loadRouteHistory();
+        // Ubah tombol jadi "Lanjutkan"
+        _showStartMode("🔄 Lanjutkan Berbagi Lokasi");
+        _setStatus("Sesi ditemukan. Klik tombol untuk melanjutkan tracking.", "#2e7d32");
+
+        // Auto-isi form
+        const ctx = _activeContext();
+        if (ctx.name && !ctx.name.value && sess.driverName) ctx.name.value = sess.driverName;
+        if (ctx.vehicle && !ctx.vehicle.value && sess.vehicleName) ctx.vehicle.value = sess.vehicleName;
+
+        if (typeof toast === "function") toast("Sesi tracking ditemukan. Silakan lanjutkan.", "info");
       } else {
-        // Trip sudah berakhir, bersihkan
         localStorage.removeItem("am_session");
         amSession = null;
       }
     })
-    .catch(err => {
-      console.warn("[antimacet] gagal cek sesi:", err);
-    });
+    .catch(err => console.warn("[antimacet] gagal cek sesi:", err));
 }
 
-// Jalankan inisialisasi saat DOM ready
-document.addEventListener("DOMContentLoaded", amInit);
-// antimacet.js — bagian 2: startPublicSharing, startDashSharing, stopSharing
-
+// ═══════════════════════════════════════════
+// START — 2 entry point sesuai HTML
+// ═══════════════════════════════════════════
 function startPublicSharing(e) {
-  if (e) e.preventDefault && e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   _startSharing("public");
 }
-
 function startDashSharing() {
   _startSharing("dash");
 }
 
 function _startSharing(role) {
   if (!navigator.geolocation) {
-    toast("Geolocation tidak didukung browser ini.", "error");
+    if (typeof toast === "function") toast("Geolocation tidak didukung.", "error");
     return;
   }
 
-  // Kalau ada sesi aktif yang belum di-restore, lanjutkan
+  // Kalau sesi aktif sudah di-restore, langsung lanjutkan
   if (amSession && amIsActive) {
     _beginWatch();
-    updateBtnUI("⏹ Hentikan Berbagi Lokasi", "btn-danger");
-    toast("Tracking dilanjutkan!", "success");
+    _showStopMode();
+    _setStatus("🟢 Tracking dilanjutkan...", "#2e7d32");
+    if (typeof toast === "function") toast("Tracking dilanjutkan!", "success");
     return;
   }
 
-  // Buat sesi baru
-  const driverId = (window.currentUser && window.currentUser.uid) ||
-                   ("drv_" + Date.now());
-  const truckId = (window.currentTruck && window.currentTruck.id) || null;
+  // Ambil input dari form yang aktif
+  const ctx = _activeContext();
+  const driverName = (ctx.name && ctx.name.value.trim()) || "Driver " + Date.now();
+  const vehicleName = (ctx.vehicle && ctx.vehicle.value.trim()) || "";
+
+  const driverId = "drv_" + Date.now();
+  const truckId = "truck_" + Date.now();
   const docId = driverId;
 
-  amSession = { driverId, role, truckId, docId };
+  amSession = { driverId, driverName, truckId, vehicleName, role, docId };
   amPath = [];
   amDist = 0;
   amStartTime = Date.now();
@@ -129,14 +180,13 @@ function _startSharing(role) {
   amLastPos = null;
 
   localStorage.setItem("am_session", JSON.stringify(amSession));
-  updateBtnUI("⏹ Hentikan Berbagi Lokasi", "btn-danger");
-  toast("Berbagi lokasi dimulai!", "success");
 
-  // Tulis data awal ke Firestore
+  _showStopMode();
+  _setStatus("🟢 Mengambil posisi GPS pertama...", "#2e7d32");
+
+  // Tulis awal ke Firestore
   db.collection("live_tracking").doc(docId).set({
-    driverId,
-    truckId,
-    role,
+    driverId, driverName, truckId, vehicleName, role,
     isActive: true,
     startTime: amStartTime,
     path: "",
@@ -145,22 +195,33 @@ function _startSharing(role) {
   }, { merge: true })
   .then(() => _beginWatch())
   .catch(err => {
-    toast("Gagal memulai tracking: " + err.message, "error");
+    if (typeof toast === "function") toast("Gagal memulai: " + err.message, "error");
   });
 }
 
+// ═══════════════════════════════════════════
+// WATCH — kirim lokasi + autosave + listen admin stop
+// ═══════════════════════════════════════════
 function _beginWatch() {
   if (amTimer) clearInterval(amTimer);
   if (amSaveTimer) clearInterval(amSaveTimer);
 
-  // Kirim lokasi tiap 5 detik
   amTimer = setInterval(_sendLocation, 5000);
-
-  // Autosave ke collection routes tiap 30 detik
   amSaveTimer = setInterval(_saveToRoutes, 30000);
-
-  // Kirim lokasi pertama segera
   _sendLocation();
+
+  // 🔥 LISTENER: admin stop dari panel admin
+  if (amUnsubscribe) amUnsubscribe();
+  if (amSession && typeof db !== "undefined") {
+    amUnsubscribe = db.collection("live_tracking").doc(amSession.docId)
+      .onSnapshot(doc => {
+        if (doc.exists && doc.data().isActive === false && amIsActive) {
+          console.log("[antimacet] Admin menghentikan tracking.");
+          stopSharing(true); // fromAdmin = true
+          if (typeof toast === "function") toast("Tracking dihentikan oleh admin.", "warning");
+        }
+      });
+  }
 }
 
 function _sendLocation() {
@@ -172,7 +233,6 @@ function _sendLocation() {
       const lng = pos.coords.longitude;
       const point = { lat, lng, t: Date.now() };
 
-      // Hitung jarak dari titik terakhir
       if (amLastPos && typeof haversineM === "function") {
         amDist += haversineM(amLastPos.lat, amLastPos.lng, lat, lng);
       }
@@ -180,17 +240,20 @@ function _sendLocation() {
       amPath.push(point);
       amLastPos = point;
 
-      // Update live_tracking dengan merge
       db.collection("live_tracking").doc(amSession.docId).set({
         lastLat: lat,
         lastLng: lng,
         path: encodePath(amPath),
         totalDistance: Math.round(amDist),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true })
-      .catch(err => console.warn("[antimacet] kirim lokasi gagal:", err));
+      }, { merge: true }).catch(err => console.warn("[antimacet] kirim lokasi gagal:", err));
+
+      _setStatus(`🟢 Aktif — ${(amDist/1000).toFixed(2)} km, ${amPath.length} titik`, "#2e7d32");
     },
-    err => console.warn("[antimacet] geolocation error:", err.message),
+    err => {
+      console.warn("[antimacet] GPS error:", err.message);
+      _setStatus("⚠️ Gagal ambil GPS: " + err.message, "#c62828");
+    },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
@@ -198,48 +261,54 @@ function _sendLocation() {
 function _saveToRoutes() {
   if (!amIsActive || !amSession || amPath.length < 2) return;
 
-  const routeDoc = {
+  db.collection("routes").doc(amSession.docId).set({
     driverId: amSession.driverId,
+    driverName: amSession.driverName,
     truckId: amSession.truckId,
+    vehicleName: amSession.vehicleName,
     startTime: amStartTime,
     path: encodePath(amPath),
     totalDistance: Math.round(amDist),
     pointCount: amPath.length,
     isActive: true,
     savedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  db.collection("routes").doc(amSession.docId).set(routeDoc, { merge: true })
-    .catch(err => console.warn("[antimacet] autosave routes gagal:", err));
+  }, { merge: true }).catch(err => console.warn("[antimacet] autosave routes gagal:", err));
 }
 
-// ========== stopSharing ==========
-function stopSharing() {
+// ═══════════════════════════════════════════
+// STOP — finalisasi + cleanup
+// ═══════════════════════════════════════════
+function stopSharing(fromAdmin) {
   amIsActive = false;
 
-  if (amTimer) { clearInterval(amTimer); amTimer = null; }
-  if (amSaveTimer) { clearInterval(amSaveTimer); amSaveTimer = null; }
+  if (amTimer)    { clearInterval(amTimer); amTimer = null; }
+  if (amSaveTimer){ clearInterval(amSaveTimer); amSaveTimer = null; }
+  if (amUnsubscribe) { amUnsubscribe(); amUnsubscribe = null; }
 
-  // Finalisasi: update live_tracking → isActive false
-  if (amSession && db) {
+  if (amSession && typeof db !== "undefined") {
     const docId = amSession.docId;
+    const pathStr = encodePath(amPath);
+    const dist = Math.round(amDist);
 
+    // Finalisasi live_tracking
     db.collection("live_tracking").doc(docId).set({
       isActive: false,
-      path: encodePath(amPath),
-      totalDistance: Math.round(amDist),
+      path: pathStr,
+      totalDistance: dist,
       endTime: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
-    // Finalisasi juga ke collection routes
+    // Finalisasi routes
     db.collection("routes").doc(docId).set({
       driverId: amSession.driverId,
+      driverName: amSession.driverName,
       truckId: amSession.truckId,
+      vehicleName: amSession.vehicleName,
       startTime: amStartTime,
       endTime: firebase.firestore.FieldValue.serverTimestamp(),
-      path: encodePath(amPath),
-      totalDistance: Math.round(amDist),
+      path: pathStr,
+      totalDistance: dist,
       pointCount: amPath.length,
       isActive: false,
       savedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -253,15 +322,22 @@ function stopSharing() {
   amDist = 0;
   amLastPos = null;
 
-  updateBtnUI("📍 Mulai Berbagi Lokasi", "btn-primary");
-  toast("Berbagi lokasi dihentikan.", "info");
+  _showStartMode(fromAdmin ? "📡 Mulai Share Lokasi" : "📡 Mulai Share Lokasi");
+  _setStatus(fromAdmin ? "⏹️ Tracking dihentikan oleh admin." : "⏹️ Tracking berhenti.", "#888");
 
-  // Refresh riwayat rute jika tersedia
-  loadRouteHistory && loadRouteHistory();
+  if (typeof toast === "function") {
+    toast(fromAdmin ? "Tracking dihentikan oleh admin." : "Tracking dihentikan.", "info");
+  }
+  if (typeof loadRouteHistory === "function") loadRouteHistory();
 }
 
-// ========== expose ke global ==========
+// ═══════════════════════════════════════════
+// Expose ke global
+// ═══════════════════════════════════════════
 window.amP = amP;
 window.startPublicSharing = startPublicSharing;
 window.startDashSharing = startDashSharing;
 window.stopSharing = stopSharing;
+
+// Init otomatis
+document.addEventListener("DOMContentLoaded", amInit);
