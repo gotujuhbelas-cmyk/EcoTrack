@@ -125,8 +125,8 @@
       <h2>🗺️ Live Tracking Armada</h2>
       <div id="mapDash" class="map-container"></div>
       <div class="table-wrapper" style="margin-top:20px"><table>
-        <thead><tr><th>Armada</th><th>Driver</th><th>Update</th><th>Status</th></tr></thead>
-        <tbody id="dashArmadaBody"><tr><td colspan="4" style="text-align:center;padding:20px">Menunggu...</td></tr></tbody>
+        <thead><tr><th>Armada</th><th>Driver</th><th>Update</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="dashArmadaBody"><tr><td colspan="5" style="text-align:center;padding:20px">Menunggu...</td></tr></tbody>
       </table></div>
       <h3 style="margin:25px 0 10px;color:var(--primary)">📜 Riwayat Rute</h3>
       <div class="table-wrapper"><table>
@@ -211,7 +211,7 @@
     <div class="login-box" style="max-width:560px">
       <img src="logo.png" class="logo-large" style="margin:0 auto 15px;display:block;max-width:140px" onerror="this.style.display='none'">
       <h2>🚛 Driver Tracking</h2>
-      <form onsubmit="startPublicSharing(event)">
+      <form onsubmit="startPublicSharing(event)" id="driverForm">
         <div class="form-group"><label>Nama Driver</label><input type="text" id="driverName" required></div>
         <div class="form-group"><label>Armada</label><input type="text" id="vehicleName" required></div>
         <button type="submit" class="btn" id="btnStartTrack">📡 Mulai Share Lokasi</button>
@@ -257,8 +257,176 @@
   </div>
 </div>
 
-<script src="app.js"></script>
-<script src="antimacet.js?v=8"></script>
-<script src="adminctl.js"></script>
+<!-- ═══════════════════════════════════════════
+     SCRIPTS — URUTAN WAJIB (cache buster v2)
+═══════════════════════════════════════════ -->
+<script src="app.js?v=2"></script>
+<script src="antimacet.js?v=9"></script>
+<script src="amview.js?v=2"></script>
+<script src="adminctl.js?v=2"></script>
+
+<!-- ═══════════════════════════════════════════
+     PATCH INDEX: admin stop handler + UI helpers
+═══════════════════════════════════════════ -->
+<script>
+(function() {
+  // ── Helper: admin stop driver dari tabel ──
+  window.adminStopSelected = function(driverId) {
+    if (!driverId) { toast("Driver ID kosong.", "error"); return; }
+    if (typeof adminStopTracking === "function") {
+      adminStopTracking(driverId);
+    } else if (typeof db !== "undefined") {
+      db.collection("live_tracking").doc(driverId).set({
+        isActive: false,
+        endTime: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).then(() => {
+        toast("Tracking " + driverId + " dihentikan.", "success");
+        if (typeof loadRouteHistory === "function") loadRouteHistory();
+      }).catch(err => toast("Gagal stop: " + err.message, "error"));
+    }
+  };
+
+  // ── Helper: hapus rute terakhir (fallback kalau adminctl belum load) ──
+  window.adminDeleteRouteFallback = function(docId) {
+    if (!docId || typeof db === "undefined") return;
+    if (!confirm("Hapus rute ini?")) return;
+    db.collection("routes").doc(docId).delete()
+      .then(() => {
+        toast("Rute dihapus.", "success");
+        if (typeof loadRouteHistory === "function") loadRouteHistory();
+      })
+      .catch(err => toast("Gagal hapus: " + err.message, "error"));
+  };
+
+  // ── Listener real-time admin: update tabel armada aktif ──
+  function bindAdminLiveTracking() {
+    if (typeof db === "undefined") {
+      setTimeout(bindAdminLiveTracking, 1000);
+      return;
+    }
+    const tbody = document.getElementById("dashArmadaBody");
+    if (!tbody) return;
+
+    db.collection("live_tracking").where("isActive", "==", true)
+      .onSnapshot(snap => {
+        tbody.innerHTML = "";
+        if (snap.empty) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Tidak ada armada aktif</td></tr>';
+          const overlay = document.getElementById("mapOverlay");
+          if (overlay) overlay.style.display = "flex";
+          return;
+        }
+
+        // Sembunyikan overlay kalau ada armada aktif
+        const overlay = document.getElementById("mapOverlay");
+        if (overlay) overlay.style.display = "none";
+
+        snap.forEach(doc => {
+          const d = doc.data();
+          const updateAt = d.updatedAt && d.updatedAt.toDate
+            ? d.updatedAt.toDate().toLocaleString("id-ID")
+            : "-";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${d.truckId || d.vehicleName || "-"}</td>
+            <td>${d.driverName || d.driverId || doc.id}</td>
+            <td>${updateAt}</td>
+            <td><span class="badge" style="background:#2e7d32;color:#fff;padding:2px 8px;border-radius:10px;font-size:.75rem">Aktif</span></td>
+            <td>
+              <button class="btn btn-danger btn-sm" onclick="adminStopSelected('${doc.id}')">⏹️ Stop</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }, err => {
+        console.warn("[live-tracking listener]", err);
+      });
+  }
+
+  // ── Listener route history (real-time) ──
+  function bindRouteHistory() {
+    if (typeof db === "undefined") {
+      setTimeout(bindRouteHistory, 1000);
+      return;
+    }
+    const tbody = document.getElementById("routeTableDash");
+    if (!tbody) return;
+
+    db.collection("routes").orderBy("savedAt", "desc").limit(20)
+      .onSnapshot(snap => {
+        tbody.innerHTML = "";
+        if (snap.empty) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:15px;color:#888">Belum ada riwayat rute</td></tr>';
+          return;
+        }
+        snap.forEach(doc => {
+          const d = doc.data();
+          const start = d.startTime ? new Date(d.startTime).toLocaleString("id-ID") : "-";
+          const end = d.endTime ? new Date(d.endTime).toLocaleString("id-ID") : (d.isActive ? "🟢 Berjalan" : "-");
+          const pts = d.pointCount || (d.path ? d.path.split(";").length : 0);
+          const km = d.totalDistance ? (d.totalDistance / 1000).toFixed(2) + " km" : "0 km";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${start}</td>
+            <td>${end}</td>
+            <td>${d.truckId || d.vehicleName || "-"}</td>
+            <td>${d.driverId || d.driverName || "-"}</td>
+            <td>${km}</td>
+            <td>${pts}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="adminDeleteRouteFallback('${doc.id}')">🗑️</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }, err => {
+        console.warn("[route-history listener]", err);
+      });
+  }
+
+  // ── Auto-restore: cek sesi driver setelah halaman load ──
+  function checkDriverSession() {
+    const saved = localStorage.getItem("am_session");
+    if (!saved) return;
+
+    // Kalau ada sesi aktif, tampilkan tombol stop & sembunyikan start
+    const btnStart = document.getElementById("btnStartTrack");
+    const btnStop = document.getElementById("btnStopTrack");
+    const driverForm = document.getElementById("driverForm");
+
+    if (btnStart && btnStop) {
+      try {
+        const sess = JSON.parse(saved);
+        btnStart.textContent = "🔄 Lanjutkan Berbagi Lokasi";
+        btnStart.style.display = "";
+        btnStop.style.display = "none";
+
+        // Auto-isi form kalau kosong
+        if (driverForm) {
+          const dn = document.getElementById("driverName");
+          const vn = document.getElementById("vehicleName");
+          if (dn && !dn.value && sess.driverName) dn.value = sess.driverName;
+          if (vn && !vn.value && sess.vehicleName) vn.value = sess.vehicleName;
+        }
+      } catch (e) {
+        localStorage.removeItem("am_session");
+      }
+    }
+  }
+
+  // ── Init setelah DOM ready ──
+  document.addEventListener("DOMContentLoaded", () => {
+    // Beri jeda 1 detik supaya Firebase & antimacet.js siap
+    setTimeout(() => {
+      bindAdminLiveTracking();
+      bindRouteHistory();
+      checkDriverSession();
+    }, 1500);
+  });
+})();
+</script>
+
 </body>
 </html>
