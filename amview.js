@@ -1,5 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// amview.js — EcoTRACK Live Tracking Viewer (COMPATIBLE VERSION)
+// amview.js — EcoTRACK Live Tracking Viewer (FINAL v5)
+// Compatible dengan antimacet.js, app.js, dan adminctl.js
 // ══════════════════════════════════════════════════════════════
 
 let liveSubs = {};
@@ -7,7 +8,7 @@ let markers = {};
 let polylines = {};
 let savedRouteLayer = [];
 
-// Helper: decode path string ke array [lat, lng]
+// ─── Helper: Decode path string ke array [lat, lng] ──────────
 function decodePathToPoints(pathStr) {
   if (!pathStr) return [];
   return pathStr.split(";").filter(Boolean).map(s => {
@@ -16,7 +17,7 @@ function decodePathToPoints(pathStr) {
   });
 }
 
-// Helper: truck icon
+// ─── Helper: Truck Icon ───────────────────────────────────────
 function getTruckIcon() {
   return L.divIcon({
     className: "truck-marker",
@@ -26,7 +27,7 @@ function getTruckIcon() {
   });
 }
 
-// Helper: flag icon untuk start/end route
+// ─── Helper: Flag Icon untuk start/end route ─────────────────
 function flagIcon(emoji) {
   return L.divIcon({
     className: "flag-marker",
@@ -40,6 +41,7 @@ function flagIcon(emoji) {
 // LISTENER: Live Tracking Real-time
 // ═══════════════════════════════════════════
 function listenToLiveTracking(tableBodyId, mapContextId, showOverlay) {
+  // Tunggu sampai db siap
   if (typeof db === "undefined") {
     setTimeout(() => listenToLiveTracking(tableBodyId, mapContextId, showOverlay), 1000);
     return;
