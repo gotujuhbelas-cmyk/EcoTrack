@@ -1,117 +1,39 @@
-// ===== ANTI-MACET v6 (+lanjut rute setelah refresh) =====
+// ANTI-MACET v7 (compact lengkap)
 var AM_PROJECT='ecotrack-184c2';
-var AM={watchId:null,path:[],dist:0,start:null,startStr:null,docId:null,driver:'',vehicle:'',ui:null,lastRec:0,lastSave:0,routeId:null,marker:null,line:null,locked:false,lockSub:null};
-function amParse(p){if(!p)return[];if(typeof p==='string')return p.split(';').map(function(s){return s.split(',').map(Number);});return p;}
-function amToStr(p){return p.map(function(x){return x[0]+','+x[1];}).join(';');}
-function amFv(v){
-  if(typeof v==='number')return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};
-  if(typeof v==='boolean')return{booleanValue:v};
-  if(Array.isArray(v))return{arrayValue:{values:v.map(amFv)}};
-  return{stringValue:String(v)};
-}
-function amWrite(col,docId,obj){
-  var fields={};Object.keys(obj).forEach(function(k){fields[k]=amFv(obj[k]);});
-  var base='https://firestore.googleapis.com/v1/projects/'+AM_PROJECT+'/databases/(default)/documents/'+col;
-  var body=JSON.stringify({fields:fields});
-  function parse(r){return r.text().then(function(t){if(!r.ok)throw new Error('HTTP '+r.status+' '+t.slice(0,140));return JSON.parse(t);});}
-  var url=docId?base+'/'+encodeURIComponent(docId):base;
-  return fetch(url,{method:docId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:body}).then(function(r){
-    if(!r.ok&&docId&&(r.status===400||r.status===404)){return fetch(base+'?documentId='+encodeURIComponent(docId),{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(parse);}
-    return parse(r);
-  });
-}
-function amRouteDoc(f){return{driverName:AM.driver,vehicleName:AM.vehicle,startTime:AM.startStr||AM.start.toLocaleString('id-ID'),endTime:f?new Date().toLocaleString('id-ID'):null,path:amToStr(AM.path),distanceM:Math.round(AM.dist),pointCount:AM.path.length,isActiveRoute:!f,createdAt:new Date().toISOString()};}
-function amMap(pt,mapId){
-  if(!maps[mapId]){maps[mapId]=L.map(mapId).setView(pt,16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(maps[mapId]);}
-  if(!AM.marker)AM.marker=L.marker(pt,{icon:truckIcon()}).addTo(maps[mapId]);else AM.marker.setLatLng(pt);
-  if(!AM.line)AM.line=L.polyline([pt],{color:'#2e7d32',weight:4,opacity:.9}).addTo(maps[mapId]);else AM.line.setLatLngs(AM.path.length?AM.path:[pt]);
-  maps[mapId].invalidateSize();maps[mapId].panTo(pt);
-}
-function listenToLiveTracking(tableBodyId,mapId,isPublic){
-  if(liveSubs[mapId])return;
-  markers[mapId]={};polylines[mapId]={};
-  liveSubs[mapId]=db.collection('live_tracking').where('isActive','==',true).onSnapshot(function(snap){
-    var map=maps[mapId],tbody=tableBodyId?document.getElementById(tableBodyId):null,overlay=isPublic?document.getElementById('mapOverlay'):null;
-    var seen=[],rows='';
-    if(snap.empty){
-      if(tbody)tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--gray)">Tidak ada armada aktif</td></tr>';
-      if(overlay)overlay.style.display='flex';
-    }else{
-      if(overlay)overlay.style.display='none';
-      snap.forEach(function(doc){
-        var d=doc.data(),id=doc.id;seen.push(id);
-        var pts=amParse(d.path);
-        var popup='<b>'+d.vehicleName+'</b><br>Driver: '+d.driverName+'<br>Update: '+(d.localTime||'-')+'<br>🛣️ '+((d.distanceM||0)/1000).toFixed(2)+' km';
-        if(map){
-          if(markers[mapId][id]){markers[mapId][id].setLatLng([d.lat,d.lng]);markers[mapId][id].setPopupContent(popup);}
-          else markers[mapId][id]=L.marker([d.lat,d.lng],{icon:truckIcon()}).addTo(map).bindPopup(popup);
-          if(pts.length>1){if(polylines[mapId][id])polylines[mapId][id].setLatLngs(pts);else polylines[mapId][id]=L.polyline(pts,{color:'#2e7d32',weight:4,opacity:.85}).addTo(map);}
-        }
-        rows+='<tr><td style="font-weight:bold">'+d.vehicleName+'</td><td>'+d.driverName+'</td><td style="color:var(--gray)">'+(d.localTime||'Baru saja')+'</td><td><span class="status-badge status-diolah">🟢 Aktif</span></td></tr>';
-      });
-      if(tbody)tbody.innerHTML=rows;
-    }
-    if(map){
-      Object.keys(markers[mapId]).forEach(function(id){if(seen.indexOf(id)<0){map.removeLayer(markers[mapId][id]);delete markers[mapId][id];}});
-      Object.keys(polylines[mapId]).forEach(function(id){if(seen.indexOf(id)<0){map.removeLayer(polylines[mapId][id]);delete polylines[mapId][id];}});
-    }
-  },function(err){toast('❌ Live tracking: '+err.message,'error');});
-}
-function viewSavedRoute(routeId){
-  var map=maps['mapDash'];
-  var r=(window.__savedRoutes||[]).find(function(x){return x.id===routeId;});
-  if(!map){alert('Peta belum siap');return;}
-  var pts=amParse(r?r.path:null);
-  if(!r||pts.length<2){alert('Rute tidak valid');return;}
-  if(savedRouteLayer&&savedRouteLayer.length)savedRouteLayer.forEach(function(l){map.removeLayer(l);});
-  var line=L.polyline(pts,{color:'#ff9800',weight:5,opacity:.9}).addTo(map);
-  var s=L.marker(pts[0],{icon:flagIcon('🟢')}).addTo(map).bindPopup('<b>START</b><br>'+(r.startTime||''));
-  var f=L.marker(pts[pts.length-1],{icon:flagIcon('🏁')}).addTo(map).bindPopup('<b>FINISH</b><br>'+(r.endTime||''));
-  savedRouteLayer=[line,s,f];
-  map.fitBounds(line.getBounds(),{padding:[40,40]});
-}
-function amAutoStop(){
-  if(AM.locked)return;
-  AM.locked=true;
-  if(AM.ui)AM.ui.status.innerHTML='⏹️ Perjalanan di-STOP oleh kantor.';
-  stopSharing();
-}
-function amStart(ui,driver,vehicle){
-  if(!driver||!vehicle){ui.status.innerHTML='❌ Isi nama driver & armada';return;}
-  if(!navigator.geolocation){ui.status.innerHTML='❌ Browser tidak support GPS';return;}
-  if(AM.marker&&maps[ui.mapId])maps[ui.mapId].removeLayer(AM.marker);
-  if(AM.line&&maps[ui.mapId])maps[ui.mapId].removeLayer(AM.line);
-  if(AM.lockSub){AM.lockSub();AM.lockSub=null;}
-  AM.watchId=null;AM.path=[];AM.dist=0;AM.start=new Date();AM.startStr=null;AM.driver=driver;AM.vehicle=vehicle;AM.ui=ui;AM.lastRec=0;AM.lastSave=0;AM.routeId=null;AM.marker=null;AM.line=null;AM.locked=false;
-  AM.docId=vehicle.replace(/[\/\#\[\]]/g,'-').replace(/\s+/g,'_');
-  try{localStorage.setItem('am_session',JSON.stringify({driver:driver,vehicle:vehicle}));}catch(e){}
-  ui.btnStart.style.display='none';ui.btnStop.style.display='block';
-  ui.status.innerHTML='⏳ Mengecek perjalanan sebelumnya...';
-  db.collection('live_tracking').doc(AM.docId).get().then(function(s){
-    var old=(s.exists&&s.data().isActive&&!s.data().locked)?s.data():null;
-    beginWatch(ui,old);
-  }).catch(function(){beginWatch(ui,null);});
-}
-function beginWatch(ui,old){
-  if(old){
-    AM.path=amParse(old.path);AM.dist=old.distanceM||0;AM.startStr=old.startTime||null;AM.lastRec=Date.now();
-    db.collection('routes').where('vehicleName','==',AM.vehicle).where('isActiveRoute','==',true).limit(1).get().then(function(s){s.forEach(function(dd){AM.routeId=dd.id;});}).catch(function(){});
-    ui.status.innerHTML='🔄 Melanjutkan rute sebelumnya ('+AM.path.length+' titik)...';
-  }else{
-    amWrite('live_tracking',AM.docId,{driverName:AM.driver,vehicleName:AM.vehicle,lat:0,lng:0,path:'',distanceM:0,startTime:'-',localTime:'-',isActive:false,locked:false}).catch(function(){});
-    ui.status.innerHTML='📡 Mencari GPS... <small>(izinkan akses lokasi)</small>';
-  }
-  AM.lockSub=db.collection('live_tracking').doc(AM.docId).onSnapshot(function(s){if(s.exists&&s.data().locked)amAutoStop();},function(){});
-  AM.watchId=navigator.geolocation.watchPosition(function(pos){
-    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy;
-    var pt=[Number(lat.toFixed(6)),Number(lng.toFixed(6))];
-    var now=Date.now();
-    var last=AM.path[AM.path.length-1];
-    if(!last||haversineM(last,pt)>=8||(now-AM.lastRec)>20000){
-      if(last)AM.dist+=haversineM(last,pt);
-      AM.path.push(pt);AM.lastRec=now;
-    }
-    amMap(pt,ui.mapId);
-    var payload={driverName:AM.driver,vehicleName:AM.vehicle,lat:lat,lng:lng,accuracy:acc,path:amToStr(AM.path),distanceM:Math.round(AM.dist),startTime:AM.startStr||AM.start.toLocaleString('id-ID'),localTime:new Date().toLocaleString('id-ID'),isActive:true,locked:AM.locked};
-    amWrite('live_tracking',AM.docId,payload).then(function(){
-      ui.status.innerHTML='✅ TERKIRIM!<br>Lat: '+lat.toFixed(5)+', Lng: '+lng.toFixed(5)+'<br>🛣️ Tit
+var AM={w:null,path:[],dist:0,t0:null,t0s:null,doc:null,dr:'',vh:'',ui:null,lr:0,ls:0,rid:null,mk:null,ln:null,lk:false,sub:null};
+function amParse(p){if(!p)return[];if(typeof p=='string')return p.split(';').map(s=>s.split(',').map(Number));return p}
+function amStr(p){return p.map(x=>x[0]+','+x[1]).join(';')}
+function amFv(v){if(typeof v=='number')return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};if(typeof v=='boolean')return{booleanValue:v};if(Array.isArray(v))return{arrayValue:{values:v.map(amFv)}};return{stringValue:String(v)}}
+function amW(c,id,o){var f={};Object.keys(o).forEach(k=>f[k]=amFv(o[k]));var b='https://firestore.googleapis.com/v1/projects/'+AM_PROJECT+'/databases/(default)/documents/'+c,body=JSON.stringify({fields:f});
+function pr(r){return r.text().then(t=>{if(!r.ok)throw new Error('HTTP '+r.status+' '+t.slice(0,120));return JSON.parse(t)})}
+var u=id?b+'/'+encodeURIComponent(id):b;
+return fetch(u,{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:body}).then(r=>(!r.ok&&id&&(r.status==400||r.status==404))?fetch(b+'?documentId='+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},body:body}).then(pr):pr(r))}
+function amRD(f){return{driverName:AM.dr,vehicleName:AM.vh,startTime:AM.t0s||AM.t0.toLocaleString('id-ID'),endTime:f?new Date().toLocaleString('id-ID'):null,path:amStr(AM.path),distanceM:Math.round(AM.dist),pointCount:AM.path.length,isActiveRoute:!f,createdAt:new Date().toISOString()}}
+function amMap(pt,mid){if(!maps[mid]){maps[mid]=L.map(mid).setView(pt,16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(maps[mid])}
+if(!AM.mk)AM.mk=L.marker(pt,{icon:truckIcon()}).addTo(maps[mid]);else AM.mk.setLatLng(pt);
+if(!AM.ln)AM.ln=L.polyline([pt],{color:'#2e7d32',weight:4,opacity:.9}).addTo(maps[mid]);else AM.ln.setLatLngs(AM.path.length?AM.path:[pt]);
+maps[mid].invalidateSize();maps[mid].panTo(pt)}
+function listenToLiveTracking(tb,mid,pub){if(liveSubs[mid])return;markers[mid]={};polylines[mid]={};
+liveSubs[mid]=db.collection('live_tracking').where('isActive','==',true).onSnapshot(sn=>{
+var map=maps[mid],body=tb?document.getElementById(tb):null,ov=pub?document.getElementById('mapOverlay'):null,seen=[],rows='';
+if(sn.empty){if(body)body.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--gray)">Tidak ada armada aktif</td></tr>';if(ov)ov.style.display='flex'}
+else{if(ov)ov.style.display='none';sn.forEach(dc=>{var d=dc.data(),id=dc.id,pts=amParse(d.path);seen.push(id);
+var pp='<b>'+d.vehicleName+'</b><br>Driver: '+d.driverName+'<br>🛣️ '+((d.distanceM||0)/1000).toFixed(2)+' km';
+if(map){if(markers[mid][id]){markers[mid][id].setLatLng([d.lat,d.lng]);markers[mid][id].setPopupContent(pp)}else markers[mid][id]=L.marker([d.lat,d.lng],{icon:truckIcon()}).addTo(map).bindPopup(pp);
+if(pts.length>1){if(polylines[mid][id])polylines[mid][id].setLatLngs(pts);else polylines[mid][id]=L.polyline(pts,{color:'#2e7d32',weight:4,opacity:.85}).addTo(map)}}
+rows+='<tr><td style="font-weight:bold">'+d.vehicleName+'</td><td>'+d.driverName+'</td><td style="color:var(--gray)">'+(d.localTime||'Baru saja')+'</td><td><span class="status-badge status-diolah">🟢 Aktif</span></td></tr>'});
+if(body)body.innerHTML=rows}
+if(map){Object.keys(markers[mid]).forEach(id=>{if(!seen.includes(id)){map.removeLayer(markers[mid][id]);delete markers[mid][id]}});Object.keys(polylines[mid]).forEach(id=>{if(!seen.includes(id)){map.removeLayer(polylines[mid][id]);delete polylines[mid][id]}})}
+},e=>toast('❌ Live tracking: '+e.message,'error'))}
+function viewSavedRoute(rid){var map=maps['mapDash'],r=(window.__savedRoutes||[]).find(x=>x.id===rid);if(!map){alert('Peta belum siap');return}
+var pts=amParse(r?r.path:null);if(!r||pts.length<2){alert('Rute tidak valid');return}
+if(savedRouteLayer.length)savedRouteLayer.forEach(l=>map.removeLayer(l));
+var ln=L.polyline(pts,{color:'#ff9800',weight:5,opacity:.9}).addTo(map);
+savedRouteLayer=[ln,L.marker(pts[0],{icon:flagIcon('🟢')}).addTo(map),L.marker(pts[pts.length-1],{icon:flagIcon('🏁')}).addTo(map)];
+map.fitBounds(ln.getBounds(),{padding:[40,40]})}
+function amAuto(){if(AM.lk)return;AM.lk=true;if(AM.ui)AM.ui.status.innerHTML='⏹️ Perjalanan di-STOP oleh kantor.';stopSharing()}
+function amStart(ui,dr,vh){if(!dr||!vh){ui.status.innerHTML='❌ Isi nama driver & armada';return}
+if(!navigator.geolocation){ui.status.innerHTML='❌ Browser tidak support GPS';return}
+if(AM.mk&&maps[ui.mapId])maps[ui.mapId].removeLayer(AM.mk);if(AM.ln&&maps[ui.mapId])maps[ui.mapId].removeLayer(AM.ln);
+if(AM.sub){AM.sub();AM.sub=null}
+AM.w=null;AM.path
