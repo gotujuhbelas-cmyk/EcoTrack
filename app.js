@@ -2,7 +2,7 @@
 // app.js — EcoTRACK Main Application
 // ══════════════════════════════════════════════════════════════
 
-// ─── Firebase Config (ASLI DARI FIREBASE CONSOLE) ─────────────
+// ─── Firebase Config ─────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyCd70zeLsmPYBHH1UdKkp4dlrKr57P73yk",
   authDomain: "ecotrack-184c2.firebaseapp.com",
@@ -168,6 +168,9 @@ auth.onAuthStateChanged(user => {
 });
 
 function showDashboard(user, role) {
+  // 🔥 PENTING: Set currentUserRole biar adminctl.js bisa detect
+  window.currentUserRole = role;
+  
   document.getElementById("publicView").classList.add("hidden");
   document.getElementById("loginView").classList.add("hidden");
   document.getElementById("driverTrackingView").classList.add("hidden");
@@ -221,7 +224,7 @@ function initMap(context) {
   const el = document.getElementById(id);
   if (!el || el._leaflet_id) return;
 
-  const map = L.map(id).setView([-6.238, 106.633], 14); // Summarecon Serpong
+  const map = L.map(id).setView([-6.238, 106.633], 14);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
@@ -245,10 +248,8 @@ function updateLiveMap(context) {
   const map = maps[context];
   if (!map) return;
 
-  // Cleanup previous listener
   if (liveUnsubs[context]) liveUnsubs[context]();
 
-  // Bersihkan marker & polyline lama
   map.eachLayer(layer => {
     if (layer instanceof L.Marker || layer instanceof L.Polyline) {
       map.removeLayer(layer);
@@ -258,7 +259,6 @@ function updateLiveMap(context) {
   liveUnsubs[context] = db.collection("live_tracking")
     .where("isActive", "==", true)
     .onSnapshot(snap => {
-      // Bersihkan lagi tiap snapshot baru
       map.eachLayer(layer => {
         if (layer instanceof L.Marker || layer instanceof L.Polyline) {
           map.removeLayer(layer);
@@ -284,7 +284,6 @@ function updateLiveMap(context) {
         }
       });
 
-      // Update overlay di public
       const overlay = document.getElementById("mapOverlay");
       if (overlay && context === "public") {
         overlay.style.display = snap.empty ? "flex" : "none";
@@ -329,7 +328,8 @@ function loadRouteHistory() {
           <td>${km}</td>
           <td>${pts}</td>
           <td>
-            ${currentRole === "admin" ? `<button class="btn btn-secondary btn-sm" onclick="deleteRoute('${doc.id}')">🗑️</button>` : ""}
+            <button class="btn btn-sm btn-info" onclick="viewSavedRoute('${doc.id}')" title="Lihat di peta">🗺️</button>
+            ${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteRoute('${doc.id}')">🗑️</button>` : ""}
           </td>
         `;
         tbody.appendChild(tr);
@@ -491,7 +491,7 @@ function loadDashData() {
           <td>${d.foto && d.foto.length > 0 ? `<button class="btn btn-sm" onclick="showPhotos('${doc.id}')">📷 ${d.foto.length}</button>` : "-"}</td>
           <td>
             <button class="btn btn-sm" onclick="openEdit('${doc.id}')">✏️</button>
-            ${currentRole === "admin" ? `<button class="btn btn-sm btn-danger" onclick="deleteData('${doc.id}')">🗑️</button>` : ""}
+            ${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="deleteData('${doc.id}')">🗑️</button>` : ""}
           </td>
         `;
         tbody.appendChild(tr);
