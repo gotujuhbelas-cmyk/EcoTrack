@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
 // amview.js — EcoTRACK Route Viewer (v10 — PANEL RUTE PER TRUK)
-console.log("%cAMVIEW v10 — panel rute aktif", "color:#1565c0;font-weight:bold");
+console.log("%cAMVIEW v10 — panel rute aktif", "color:#1565c0;font-weight:bold;font-size:14px");
 // ══════════════════════════════════════════════════════════════
 
 let liveSubs = {};
@@ -9,6 +9,7 @@ let polylines = {};
 let savedRouteLayer = [];
 let routeOverlayLayer = [];
 
+// ═══ Helpers ═══
 function decodePathToPoints(pathStr) {
   if (!pathStr) return [];
   return pathStr.split(";").filter(Boolean).map(s => {
@@ -135,7 +136,7 @@ function viewSavedRoute(routeId) {
   });
 }
 
-// ═══ LIHAT RUTE LIVE (truk sedang berjalan) ═══
+// ═══ LIHAT RUTE LIVE (truk berjalan) ═══
 function viewLiveRoute(docId) {
   const mp = maps["dash"];
   if (!mp || typeof db === "undefined") return;
@@ -162,7 +163,7 @@ function viewLiveRoute(docId) {
   });
 }
 
-// ═══ PANEL RUTE PER TRUK (auto-inject ke dashboard) ═══
+// ═══ PANEL RUTE PER TRUK ═══
 function _rpItem(label, sub, onclick, color) {
   return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #eee;gap:8px">' +
     '<div style="min-width:0"><div style="font-weight:600;font-size:.9rem">' + label + '</div>' +
@@ -237,7 +238,7 @@ function buildRoutePanel() {
   return true;
 }
 
-// Auto-build panel saat dashboard siap + refresh tiap 15 detik
+// Auto-build panel + refresh tiap 15 detik
 (function() {
   let tries = 0;
   const t = setInterval(() => {
@@ -249,6 +250,7 @@ function buildRoutePanel() {
   }, 15000);
 })();
 
+// Expose ke global
 window.listenToLiveTracking = listenToLiveTracking;
 window.viewSavedRoute = viewSavedRoute;
 window.viewLiveRoute = viewLiveRoute;
