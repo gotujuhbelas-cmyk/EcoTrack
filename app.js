@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// app.js — EcoTRACK Main Application (SAFE VERSION)
-// Hanya tambah: capturedPhotos + updateFileListUI
-// Semua fungsi lain TIDAK DIUBAH
+// app.js — EcoTRACK (FINAL v11)
+// FIX: koleksi "sampah" (bukan "data"), field "fotos" (bukan "foto")
 // ══════════════════════════════════════════════════════════════
 
 const firebaseConfig = {
@@ -22,18 +21,15 @@ let currentUser = null;
 let currentRole = null;
 let maps = {};
 let truckIcon = null;
-let driverMarker = null;
-let routePolyline = null;
 let routeHistory = [];
 let unsubRoute = null;
-let unsubArmada = null;
 let selectedFiles = [];
 let editSelectedFiles = [];
 
-// 🔥 TAMBAHAN: Foto dari kamera
+// 🔥 Foto dari kamera
 window.capturedPhotos = window.capturedPhotos || [];
 
-// ─── Haversine Distance ───────────────────────────────────────
+// ─── Haversine ────────────────────────────────────────────────
 function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -44,7 +40,7 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Toast Notification ───────────────────────────────────────
+// ─── Toast ───────────────────────────────────────────────────
 function toast(msg, type = "info") {
   let wrap = document.getElementById("toastWrap");
   if (!wrap) {
@@ -54,26 +50,18 @@ function toast(msg, type = "info") {
     document.body.appendChild(wrap);
   }
   const el = document.createElement("div");
-  el.style.cssText = `min-width:260px;padding:.75rem 1rem;border-radius:10px;color:#fff;font-size:.875rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:slideIn .3s ease`;
+  el.style.cssText = "min-width:260px;padding:.75rem 1rem;border-radius:10px;color:#fff;font-size:.875rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2)";
   const colors = { success: "#2e7d32", error: "#c62828", info: "#1565c0", warning: "#ef6c00" };
   el.style.background = colors[type] || colors.info;
   el.textContent = msg;
   wrap.appendChild(el);
-  setTimeout(() => {
-    el.style.opacity = "0";
-    el.style.transition = "opacity .3s";
-    setTimeout(() => el.remove(), 300);
-  }, 3500);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .3s"; setTimeout(() => el.remove(), 300); }, 3500);
 }
 
-// ─── Loading Overlay ──────────────────────────────────────────
 function showLoading(text = "Memuat data...") {
   const overlay = document.getElementById("loadingOverlay");
   const txt = document.getElementById("loadingText");
-  if (overlay) {
-    overlay.classList.remove("hidden");
-    if (txt) txt.textContent = text;
-  }
+  if (overlay) { overlay.classList.remove("hidden"); if (txt) txt.textContent = text; }
 }
 function hideLoading() {
   const overlay = document.getElementById("loadingOverlay");
@@ -86,10 +74,7 @@ function showPublic() {
   document.getElementById("loginView").classList.add("hidden");
   document.getElementById("dashboardView").classList.add("hidden");
   document.getElementById("driverTrackingView").classList.add("hidden");
-  setTimeout(() => {
-    initMap("public");
-    updateLiveMap("public");
-  }, 200);
+  setTimeout(() => { initMap("public"); updateLiveMap("public"); }, 200);
 }
 function showLogin() {
   document.getElementById("publicView").classList.add("hidden");
@@ -105,237 +90,118 @@ function showDriverTracking() {
   setTimeout(() => initMap("share"), 200);
 }
 function toggleMenu() {
-  document.querySelectorAll(".nav-links").forEach(el => {
-    el.classList.toggle("show");
-  });
+  document.querySelectorAll(".nav-links").forEach(el => el.classList.toggle("show"));
 }
 
-// ─── Firebase Auth ────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────
 function doFirebaseLogin(e) {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
   const pass = document.getElementById("loginPassword").value;
   const errBox = document.getElementById("loginError");
-
   showLoading("Login...");
   auth.signInWithEmailAndPassword(email, pass)
-    .then(() => {
-      if (errBox) errBox.textContent = "";
-      hideLoading();
-      toast("Login berhasil!", "success");
-    })
-    .catch(err => {
-      hideLoading();
-      if (errBox) errBox.textContent = "❌ " + err.message;
-      toast("Login gagal: " + err.message, "error");
-    });
+    .then(() => { if (errBox) errBox.textContent = ""; hideLoading(); toast("Login berhasil!", "success"); })
+    .catch(err => { hideLoading(); if (errBox) errBox.textContent = "❌ " + err.message; toast("Login gagal: " + err.message, "error"); });
 }
 
 function doFirebaseLogout() {
-  auth.signOut().then(() => {
-    localStorage.removeItem("am_session");
-    toast("Logout berhasil.", "info");
-    showPublic();
-  });
+  auth.signOut().then(() => { localStorage.removeItem("am_session"); toast("Logout berhasil.", "info"); showPublic(); });
 }
 
-// ─── Role Detection ───────────────────────────────────────────
 function detectRole(user) {
   return db.collection("users").doc(user.uid).get()
-    .then(doc => {
-      if (doc.exists && doc.data().role) {
-        currentRole = doc.data().role;
-      } else {
-        currentRole = "user";
-      }
-      return currentRole;
-    })
-    .catch(() => {
-      currentRole = "user";
-      return currentRole;
-    });
+    .then(doc => { currentRole = (doc.exists && doc.data().role) ? doc.data().role : "user"; return currentRole; })
+    .catch(() => { currentRole = "user"; return currentRole; });
 }
 
-// ─── Auth State Listener ──────────────────────────────────────
 auth.onAuthStateChanged(user => {
   currentUser = user;
   hideLoading();
-
-  if (user) {
-    detectRole(user).then(role => {
-      showDashboard(user, role);
-    });
-  } else {
-    currentUser = null;
-    currentRole = null;
-  }
+  if (user) { detectRole(user).then(role => showDashboard(user, role)); }
+  else { currentUser = null; currentRole = null; }
 });
 
 function showDashboard(user, role) {
   window.currentUserRole = role;
-  
   document.getElementById("publicView").classList.add("hidden");
   document.getElementById("loginView").classList.add("hidden");
   document.getElementById("driverTrackingView").classList.add("hidden");
   document.getElementById("dashboardView").classList.remove("hidden");
-
   document.getElementById("dashEmail").textContent = user.email || "user";
   document.getElementById("roleBadge").textContent = role.toUpperCase();
-  document.getElementById("dashBrand").textContent = 
-    role === "admin" ? "Admin Panel" : role === "driver" ? "Driver Panel" : "Dashboard";
+  document.getElementById("dashBrand").textContent = role === "admin" ? "Admin Panel" : role === "driver" ? "Driver Panel" : "Dashboard";
 
   const navInput = document.getElementById("navInput");
   const navShare = document.getElementById("navShare");
   const thAksi = document.getElementById("thAksi");
+  if (role === "admin") { if (navInput) navInput.style.display = ""; if (navShare) navShare.style.display = ""; if (thAksi) thAksi.style.display = ""; }
+  else if (role === "driver") { if (navInput) navInput.style.display = "none"; if (navShare) navShare.style.display = ""; if (thAksi) thAksi.style.display = "none"; }
+  else { if (navInput) navInput.style.display = "none"; if (navShare) navShare.style.display = "none"; if (thAksi) thAksi.style.display = "none"; }
 
-  if (role === "admin") {
-    if (navInput) navInput.style.display = "";
-    if (navShare) navShare.style.display = "";
-    if (thAksi) thAksi.style.display = "";
-  } else if (role === "driver") {
-    if (navInput) navInput.style.display = "none";
-    if (navShare) navShare.style.display = "";
-    if (thAksi) thAksi.style.display = "none";
-  } else {
-    if (navInput) navInput.style.display = "none";
-    if (navShare) navShare.style.display = "none";
-    if (thAksi) thAksi.style.display = "none";
-  }
-
-  setTimeout(() => {
-    initMap("dash");
-    initMap("dashShare");
-    updateLiveMap("dash");
-    loadRouteHistory();
-    loadDashboardStats();
-    loadDashData();
-  }, 300);
+  setTimeout(() => { initMap("dash"); initMap("dashShare"); updateLiveMap("dash"); loadRouteHistory(); loadDashboardStats(); loadDashData(); }, 300);
 }
 
-// ─── Map Initialization ───────────────────────────────────────
+// ─── Map ──────────────────────────────────────────────────────
 function initMap(context) {
-  const mapIds = {
-    public: "mapPublic",
-    dash: "mapDash",
-    share: "mapShare",
-    dashShare: "mapDashShare"
-  };
+  const mapIds = { public: "mapPublic", dash: "mapDash", share: "mapShare", dashShare: "mapDashShare" };
   const id = mapIds[context];
   if (!id) return;
-
   const el = document.getElementById(id);
   if (!el || el._leaflet_id) return;
-
   const map = L.map(id).setView([-6.238, 106.633], 14);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: '&copy; OpenStreetMap' }).addTo(map);
   maps[context] = map;
-
   if (!truckIcon) {
-    truckIcon = L.divIcon({
-      className: "truck-marker",
-      html: '<div style="font-size:28px;text-shadow:0 2px 4px rgba(0,0,0,.3)">🚛</div>',
-      iconSize: [36, 36],
-      iconAnchor: [18, 36]
-    });
+    truckIcon = L.divIcon({ className: "truck-marker", html: '<div style="font-size:28px;text-shadow:0 2px 4px rgba(0,0,0,.3)">🚛</div>', iconSize: [36, 36], iconAnchor: [18, 36] });
   }
 }
 
-// ─── Live Tracking ────────────────────────────────────────────
 let liveUnsubs = {};
-
 function updateLiveMap(context) {
   const map = maps[context];
   if (!map) return;
-
   if (liveUnsubs[context]) liveUnsubs[context]();
-
-  map.eachLayer(layer => {
-    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-      map.removeLayer(layer);
-    }
-  });
-
-  liveUnsubs[context] = db.collection("live_tracking")
-    .where("isActive", "==", true)
-    .onSnapshot(snap => {
-      map.eachLayer(layer => {
-        if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-          map.removeLayer(layer);
+  map.eachLayer(layer => { if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer); });
+  liveUnsubs[context] = db.collection("live_tracking").where("isActive", "==", true).onSnapshot(snap => {
+    map.eachLayer(layer => { if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer); });
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.lastLat && d.lastLng) {
+        L.marker([d.lastLat, d.lastLng], { icon: truckIcon }).addTo(map)
+          .bindPopup(`<b>${d.vehicleName || d.truckId || doc.id}</b><br>Driver: ${d.driverName || d.driverId}<br>Jarak: ${((d.totalDistance||0)/1000).toFixed(2)} km`);
+        if (d.path && d.path.length > 0) {
+          const points = d.path.split(";").filter(Boolean).map(s => { const [lat, lng] = s.split(",").map(Number); return [lat, lng]; });
+          if (points.length > 1) L.polyline(points, { color: "#2e7d32", weight: 3, opacity: 0.7 }).addTo(map);
         }
-      });
-
-      snap.forEach(doc => {
-        const d = doc.data();
-        if (d.lastLat && d.lastLng) {
-          const marker = L.marker([d.lastLat, d.lastLng], { icon: truckIcon })
-            .addTo(map)
-            .bindPopup(`<b>${d.vehicleName || d.truckId || doc.id}</b><br>Driver: ${d.driverName || d.driverId}<br>Jarak: ${((d.totalDistance||0)/1000).toFixed(2)} km`);
-          
-          if (d.path && d.path.length > 0) {
-            const points = d.path.split(";").filter(Boolean).map(s => {
-              const [lat, lng] = s.split(",").map(Number);
-              return [lat, lng];
-            });
-            if (points.length > 1) {
-              L.polyline(points, { color: "#2e7d32", weight: 3, opacity: 0.7 }).addTo(map);
-            }
-          }
-        }
-      });
-
-      const overlay = document.getElementById("mapOverlay");
-      if (overlay && context === "public") {
-        overlay.style.display = snap.empty ? "flex" : "none";
       }
-    }, err => console.warn("[liveMap]", err));
+    });
+    const overlay = document.getElementById("mapOverlay");
+    if (overlay && context === "public") overlay.style.display = snap.empty ? "flex" : "none";
+  }, err => console.warn("[liveMap]", err));
 }
 
 // ─── Route History ────────────────────────────────────────────
 function loadRouteHistory() {
   const tbody = document.getElementById("routeTableDash");
   if (!tbody) return;
-
   if (unsubRoute) unsubRoute();
-
-  unsubRoute = db.collection("routes")
-    .orderBy("savedAt", "desc")
-    .limit(20)
-    .onSnapshot(snap => {
-      routeHistory = [];
-      tbody.innerHTML = "";
-
-      if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:15px;color:#888">Belum ada riwayat rute</td></tr>';
-        return;
-      }
-
-      snap.forEach(doc => {
-        const d = doc.data();
-        routeHistory.push({ id: doc.id, ...d });
-
-        const start = d.startTime ? new Date(d.startTime).toLocaleString("id-ID") : "-";
-        const end = d.endTime ? new Date(d.endTime).toLocaleString("id-ID") : (d.isActive ? "🟢 Berjalan" : "-");
-        const pts = d.pointCount || (d.path ? d.path.split(";").length : 0);
-        const km = d.totalDistance ? (d.totalDistance / 1000).toFixed(2) + " km" : "0 km";
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${start}</td>
-          <td>${end}</td>
-          <td>${d.vehicleName || d.truckId || "-"}</td>
-          <td>${d.driverName || d.driverId || "-"}</td>
-          <td>${km}</td>
-          <td>${pts}</td>
-          <td>
-            ${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteRoute('${doc.id}')">🗑️</button>` : ""}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }, err => console.warn("[routeHistory]", err));
+  unsubRoute = db.collection("routes").orderBy("savedAt", "desc").limit(20).onSnapshot(snap => {
+    routeHistory = [];
+    tbody.innerHTML = "";
+    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:15px;color:#888">Belum ada riwayat rute</td></tr>'; return; }
+    snap.forEach(doc => {
+      const d = doc.data();
+      routeHistory.push({ id: doc.id, ...d });
+      const start = d.startTime ? new Date(d.startTime).toLocaleString("id-ID") : "-";
+      const end = d.endTime ? new Date(d.endTime).toLocaleString("id-ID") : (d.isActive ? "🟢 Berjalan" : "-");
+      const pts = d.pointCount || (d.path ? d.path.split(";").length : 0);
+      const km = d.totalDistance ? (d.totalDistance / 1000).toFixed(2) + " km" : "0 km";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${start}</td><td>${end}</td><td>${d.vehicleName || d.truckId || "-"}</td><td>${d.driverName || d.driverId || "-"}</td><td>${km}</td><td>${pts}</td><td>${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteRoute('${doc.id}')">🗑️</button>` : ""}</td>`;
+      tbody.appendChild(tr);
+    });
+  }, err => console.warn("[routeHistory]", err));
 }
 
 function deleteRoute(docId) {
@@ -345,12 +211,13 @@ function deleteRoute(docId) {
     .catch(err => toast("Gagal hapus: " + err.message, "error"));
 }
 
-// ─── Dashboard Stats ──────────────────────────────────────────
+// ═══════════════════════════════════════════
+// 🔥 FIX: koleksi "sampah" (bukan "data")
+// ═══════════════════════════════════════════
 function loadDashboardStats() {
-  db.collection("data").get()
+  db.collection("sampah").get()
     .then(snap => {
       let totalPickup = 0, totalWeight = 0, totalProcessed = 0, totalResidue = 0;
-
       snap.forEach(doc => {
         const d = doc.data();
         totalPickup++;
@@ -358,7 +225,6 @@ function loadDashboardStats() {
         totalProcessed += d.diolah || 0;
         totalResidue += d.residu || 0;
       });
-
       const ids = [
         ["stPickup", totalPickup],
         ["stWeight", totalWeight.toFixed(1) + " kg"],
@@ -369,21 +235,17 @@ function loadDashboardStats() {
         ["pubProcessed", totalProcessed.toFixed(1) + " kg"],
         ["pubResidue", totalResidue.toFixed(1) + " kg"]
       ];
-      ids.forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-      });
+      ids.forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.textContent = val; });
     })
     .catch(err => console.warn("[stats]", err));
 }
 
-// ─── Input Data ───────────────────────────────────────────────
+// ─── File Upload + Kamera ─────────────────────────────────────
 function handleFileSelect(e) {
   selectedFiles = Array.from(e.target.files).slice(0, 5);
   updateFileListUI();
 }
 
-// 🔥 TAMBAHAN: Update daftar file (galeri + kamera)
 function updateFileListUI() {
   const list = document.getElementById("fileList");
   if (!list) return;
@@ -408,9 +270,7 @@ async function compressImage(file, maxWidth = 800, quality = 0.7) {
         canvas.height = Math.round(img.height * ratio);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => {
-          resolve(new File([blob], file.name, { type: "image/jpeg" }));
-        }, "image/jpeg", quality);
+        canvas.toBlob(blob => resolve(new File([blob], file.name, { type: "image/jpeg" })), "image/jpeg", quality);
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -429,11 +289,10 @@ function fileToBase64(file) {
   });
 }
 
-// 🔥 UPDATED: addData sekarang merge capturedPhotos + selectedFiles
+// 🔥 FIX: simpan ke "sampah", field "fotos"
 async function addData(e) {
   e.preventDefault();
   showLoading("Menyimpan data...");
-
   try {
     const allFiles = (window.capturedPhotos || []).concat(selectedFiles).slice(0, 5);
 
@@ -455,13 +314,11 @@ async function addData(e) {
         const compressed = await compressImage(file);
         const b64 = await fileToBase64(compressed);
         fotoUrls.push(b64);
-      } catch (err) {
-        console.warn("Foto gagal diproses:", err);
-      }
+      } catch (err) { console.warn("Foto gagal diproses:", err); }
     }
-    doc.foto = fotoUrls;
+    doc.fotos = fotoUrls;  // 🔥 field "fotos" sesuai data existing
 
-    await db.collection("data").add(doc);
+    await db.collection("sampah").add(doc);
     toast("Data berhasil disimpan!", "success");
 
     e.target.reset();
@@ -480,21 +337,18 @@ async function addData(e) {
   }
 }
 
-// ─── Data Table ───────────────────────────────────────────────
+// 🔥 FIX: baca dari "sampah", field "fotos"
 function loadDashData() {
   const tbody = document.getElementById("dashDataTable");
   if (!tbody) return;
-
-  db.collection("data").orderBy("createdAt", "desc").limit(50)
+  db.collection("sampah").orderBy("createdAt", "desc").limit(50)
     .get()
     .then(snap => {
       tbody.innerHTML = "";
-      if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:15px;color:#888">Belum ada data</td></tr>';
-        return;
-      }
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:15px;color:#888">Belum ada data</td></tr>'; return; }
       snap.forEach(doc => {
         const d = doc.data();
+        const fotos = d.fotos || d.foto || [];
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${d.tanggal}</td>
@@ -503,7 +357,7 @@ function loadDashData() {
           <td>${d.diolah} kg</td>
           <td>${d.residu} kg</td>
           <td>${d.petugas}</td>
-          <td>${d.foto && d.foto.length > 0 ? `<button class="btn btn-sm" onclick="showPhotos('${doc.id}')">📷 ${d.foto.length}</button>` : "-"}</td>
+          <td>${fotos.length > 0 ? `<button class="btn btn-sm" onclick="showPhotos('${doc.id}')">📷 ${fotos.length}</button>` : "-"}</td>
           <td>
             <button class="btn btn-sm" onclick="openEdit('${doc.id}')">✏️</button>
             ${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="deleteData('${doc.id}')">🗑️</button>` : ""}
@@ -518,7 +372,7 @@ function loadDashData() {
 let editDocId = null;
 function openEdit(id) {
   editDocId = id;
-  db.collection("data").doc(id).get().then(doc => {
+  db.collection("sampah").doc(id).get().then(doc => {
     const d = doc.data();
     document.getElementById("eId").value = id;
     document.getElementById("eTanggal").value = d.tanggal;
@@ -528,22 +382,17 @@ function openEdit(id) {
     document.getElementById("eResidu").value = d.residu || "";
     document.getElementById("ePetugas").value = d.petugas;
     document.getElementById("eCatatan").value = d.catatan || "";
-
     const gallery = document.getElementById("eExistingPhotos");
+    const fotos = d.fotos || d.foto || [];
     if (gallery) {
-      gallery.innerHTML = (d.foto || []).map(url => `
-        <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;cursor:pointer" 
-             onclick="viewPhoto('${url}')">
+      gallery.innerHTML = fotos.map(url => `
+        <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;cursor:pointer" onclick="viewPhoto('${url}')">
       `).join("");
     }
-
     document.getElementById("editModal").classList.add("show");
   });
 }
-function closeEditModal() {
-  document.getElementById("editModal").classList.remove("show");
-  editDocId = null;
-}
+function closeEditModal() { document.getElementById("editModal").classList.remove("show"); editDocId = null; }
 function handleEditFileSelect(e) {
   editSelectedFiles = Array.from(e.target.files).slice(0, 5);
   const list = document.getElementById("eFileList");
@@ -552,7 +401,6 @@ function handleEditFileSelect(e) {
 function updateData(e) {
   e.preventDefault();
   if (!editDocId) return;
-
   const update = {
     tanggal: document.getElementById("eTanggal").value,
     jenis: document.getElementById("eJenis").value,
@@ -562,44 +410,28 @@ function updateData(e) {
     petugas: document.getElementById("ePetugas").value,
     catatan: document.getElementById("eCatatan").value
   };
-
-  db.collection("data").doc(editDocId).update(update)
-    .then(() => {
-      toast("Data diupdate!", "success");
-      closeEditModal();
-      loadDashData();
-    })
+  db.collection("sampah").doc(editDocId).update(update)
+    .then(() => { toast("Data diupdate!", "success"); closeEditModal(); loadDashData(); })
     .catch(err => toast("Gagal update: " + err.message, "error"));
 }
 function deleteData(id) {
   if (!confirm("Hapus data ini?")) return;
-  db.collection("data").doc(id).delete()
-    .then(() => {
-      toast("Data dihapus.", "success");
-      loadDashData();
-      loadDashboardStats();
-    });
+  db.collection("sampah").doc(id).delete()
+    .then(() => { toast("Data dihapus.", "success"); loadDashData(); loadDashboardStats(); });
 }
 
 // ─── Photo Viewer ─────────────────────────────────────────────
 function showPhotos(docId) {
-  db.collection("data").doc(docId).get().then(doc => {
+  db.collection("sampah").doc(docId).get().then(doc => {
     const d = doc.data();
+    const fotos = d.fotos || d.foto || [];
     const viewer = document.getElementById("photoViewer");
-    if (viewer) {
-      viewer.innerHTML = (d.foto || []).map(url => `
-        <img src="${url}" style="max-width:100%;border-radius:8px;margin:10px 0">
-      `).join("");
-    }
+    if (viewer) viewer.innerHTML = fotos.map(url => `<img src="${url}" style="max-width:100%;border-radius:8px;margin:10px 0">`).join("");
     document.getElementById("photoModal").classList.add("show");
   });
 }
-function viewPhoto(url) {
-  window.open(url, "_blank");
-}
-function closePhotoModal() {
-  document.getElementById("photoModal").classList.remove("show");
-}
+function viewPhoto(url) { window.open(url, "_blank"); }
+function closePhotoModal() { document.getElementById("photoModal").classList.remove("show"); }
 
 // ─── Reports ──────────────────────────────────────────────────
 function toggleCustomDate() {
@@ -614,35 +446,18 @@ function toggleCustomDate() {
 function generateReport() {
   const period = document.getElementById("reportPeriod").value;
   let start, end;
+  if (period === "daily") { const d = document.getElementById("reportDate").value || new Date().toISOString().split("T")[0]; start = new Date(d); end = new Date(d); end.setDate(end.getDate() + 1); }
+  else if (period === "weekly") { const d = document.getElementById("reportWeekDate").value; start = new Date(d); end = new Date(d); end.setDate(end.getDate() + 7); }
+  else if (period === "monthly") { const m = document.getElementById("reportMonth").value; start = new Date(m + "-01"); end = new Date(start.getFullYear(), start.getMonth() + 1, 1); }
+  else if (period === "custom") { start = new Date(document.getElementById("reportDateFrom").value); end = new Date(document.getElementById("reportDateTo").value); end.setDate(end.getDate() + 1); }
 
-  if (period === "daily") {
-    const d = document.getElementById("reportDate").value || new Date().toISOString().split("T")[0];
-    start = new Date(d);
-    end = new Date(d);
-    end.setDate(end.getDate() + 1);
-  } else if (period === "weekly") {
-    const d = document.getElementById("reportWeekDate").value;
-    start = new Date(d);
-    end = new Date(d);
-    end.setDate(end.getDate() + 7);
-  } else if (period === "monthly") {
-    const m = document.getElementById("reportMonth").value;
-    start = new Date(m + "-01");
-    end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-  } else if (period === "custom") {
-    start = new Date(document.getElementById("reportDateFrom").value);
-    end = new Date(document.getElementById("reportDateTo").value);
-    end.setDate(end.getDate() + 1);
-  }
-
-  db.collection("data")
+  db.collection("sampah")
     .where("tanggal", ">=", start.toISOString().split("T")[0])
     .where("tanggal", "<", end.toISOString().split("T")[0])
     .get()
     .then(snap => {
       let totalPickup = 0, totalWeight = 0, totalProcessed = 0, totalResidue = 0;
       const rows = [];
-
       snap.forEach(doc => {
         const d = doc.data();
         totalPickup++;
@@ -651,23 +466,14 @@ function generateReport() {
         totalResidue += d.residu || 0;
         rows.push(d);
       });
-
       document.getElementById("rptTotalPickup").textContent = totalPickup;
       document.getElementById("rptTotalWeight").textContent = totalWeight.toFixed(1) + " kg";
       document.getElementById("rptTotalProcessed").textContent = totalProcessed.toFixed(1) + " kg";
       document.getElementById("rptTotalResidue").textContent = totalResidue.toFixed(1) + " kg";
-
       const tbody = document.getElementById("reportTableBody");
       if (tbody) {
         tbody.innerHTML = rows.length ? rows.map(r => `
-          <tr>
-            <td>${r.tanggal}</td>
-            <td>${r.jenis}</td>
-            <td>${r.berat} kg</td>
-            <td>${r.diolah} kg</td>
-            <td>${r.residu} kg</td>
-            <td>${r.petugas}</td>
-          </tr>
+          <tr><td>${r.tanggal}</td><td>${r.jenis}</td><td>${r.berat} kg</td><td>${r.diolah} kg</td><td>${r.residu} kg</td><td>${r.petugas}</td></tr>
         `).join("") : '<tr><td colspan="6" style="text-align:center;padding:15px;color:#888">Tidak ada data di periode ini</td></tr>';
       }
     });
@@ -677,78 +483,51 @@ function generateReport() {
 function loadPublicChart() {
   const ctx = document.getElementById("pubChart");
   if (!ctx) return;
-
-  db.collection("data").get().then(snap => {
+  db.collection("sampah").get().then(snap => {
     const grouped = {};
     snap.forEach(doc => {
       const d = doc.data();
-      if (d.tanggal) {
-        grouped[d.tanggal] = (grouped[d.tanggal] || 0) + (d.berat || 0);
-      }
+      if (d.tanggal) grouped[d.tanggal] = (grouped[d.tanggal] || 0) + (d.berat || 0);
     });
     const labels = Object.keys(grouped).sort();
     const data = labels.map(l => grouped[l]);
-
     new Chart(ctx, {
       type: "line",
       data: {
         labels: labels.length ? labels : ["-"],
-        datasets: [{
-          label: "Sampah Terangkut (kg)",
-          data: data.length ? data : [0],
-          borderColor: "#2e7d32",
-          backgroundColor: "rgba(46,125,50,.1)",
-          fill: true,
-          tension: 0.4
-        }]
+        datasets: [{ label: "Sampah Terangkut (kg)", data: data.length ? data : [0], borderColor: "#2e7d32", backgroundColor: "rgba(46,125,50,.1)", fill: true, tension: 0.4 }]
       },
       options: { responsive: true, maintainAspectRatio: false }
     });
   });
 }
 
-// ─── Public Data Table ────────────────────────────────────────
+// ─── Public Data ──────────────────────────────────────────────
 function loadPublicData() {
   const tbody = document.getElementById("pubTable");
   if (!tbody) return;
-
-  db.collection("data").orderBy("createdAt", "desc").limit(10)
+  db.collection("sampah").orderBy("createdAt", "desc").limit(10)
     .get()
     .then(snap => {
       tbody.innerHTML = "";
-      if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:15px;color:#888">Belum ada data</td></tr>';
-        return;
-      }
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:15px;color:#888">Belum ada data</td></tr>'; return; }
       snap.forEach(doc => {
         const d = doc.data();
+        const fotos = d.fotos || d.foto || [];
         const status = (d.residu || 0) > 0 ? "Ada Residu" : "Bersih";
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${d.tanggal}</td>
-          <td>${d.jenis}</td>
-          <td>${d.berat} kg</td>
-          <td><span class="badge">${status}</span></td>
-          <td>${d.foto && d.foto.length > 0 ? "📷" : "-"}</td>
-        `;
+        tr.innerHTML = `<td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat} kg</td><td><span class="badge">${status}</span></td><td>${fotos.length > 0 ? "📷" : "-"}</td>`;
         tbody.appendChild(tr);
       });
     });
 }
 
-// ─── Splash Screen ────────────────────────────────────────────
+// ─── Splash ───────────────────────────────────────────────────
 window.addEventListener("load", () => {
   setTimeout(() => {
     const splash = document.getElementById("splashScreen");
     if (splash) splash.classList.add("fade-out");
-    setTimeout(() => {
-      if (splash) splash.style.display = "none";
-      if (!currentUser) {
-        showPublic();
-        loadPublicData();
-        loadPublicChart();
-      }
-    }, 500);
+    setTimeout(() => { if (splash) splash.style.display = "none"; if (!currentUser) { showPublic(); loadPublicData(); loadPublicChart(); } }, 500);
   }, 2000);
 });
 
