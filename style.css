@@ -91,3 +91,63 @@ td{padding:12px;border-bottom:1px solid #eee;font-size:.9rem}
 .hero{padding:40px 20px}.hero h1{font-size:1.6rem}.stat-value{font-size:1.5rem}
 .chart-container{height:250px}th,td{padding:8px;font-size:.8rem}.map-container{height:350px}.logo-large{width:150px;height:150px}
 }
+/* ═══════════════════════════════════════════
+   HAMBURGER MENU - MOBILE RESPONSIVE
+═══════════════════════════════════════════ */
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    flex-direction: column;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+  }
+
+  .nav-links.show {
+    display: flex;
+  }
+
+  .nav-links a,
+  .nav-links button {
+    padding: 12px 15px;
+    color: #333;
+    text-decoration: none;
+    border-bottom: 1px solid #eee;
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .nav-links a:hover,
+  .nav-links button:hover {
+    background: #f5f5f5;
+  }
+
+  .nav-links .user-info {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+  }
+}
