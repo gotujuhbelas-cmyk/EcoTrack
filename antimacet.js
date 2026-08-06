@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-// antimacet.js — EcoTRACK Driver Tracking (PWA OPTIMIZED)
+// antimacet.js — EcoTRACK Driver Tracking (v12 — WAJIB LOGIN)
 // ══════════════════════════════════════════════════════════════
 
 let amSession = null;
@@ -10,7 +10,7 @@ let amIsActive = false;
 let amLastPos = null;
 let amStartTime = null;
 let amUnsubscribe = null;
-let watchId = null; // 🔥 PWA: ID untuk watchPosition
+let watchId = null;
 
 // ═══════════════════════════════════════════
 // amP() — dipakai oleh amview.js
@@ -28,7 +28,7 @@ function amP() {
 }
 
 // ═══════════════════════════════════════════
-// Helpers: path ↔ string
+// Helpers
 // ═══════════════════════════════════════════
 function encodePath(arr) {
   return arr.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(";");
@@ -41,8 +41,18 @@ function decodePath(str) {
   });
 }
 
+// 🔥 CEK LOGIN: wajib login untuk share lokasi
+function _requireLogin() {
+  if (typeof currentUser === "undefined" || !currentUser) {
+    if (typeof toast === "function") toast("🔐 Silakan login dulu untuk share lokasi.", "warning");
+    if (typeof showLogin === "function") showLogin();
+    return false;
+  }
+  return true;
+}
+
 // ═══════════════════════════════════════════
-// UI: tombol start/stop
+// UI helpers
 // ═══════════════════════════════════════════
 function _activeContext() {
   if (!document.getElementById("driverTrackingView").classList.contains("hidden")) {
@@ -133,7 +143,7 @@ function amInit() {
 }
 
 // ═══════════════════════════════════════════
-// START
+// START (wajib login)
 // ═══════════════════════════════════════════
 function startPublicSharing(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -144,6 +154,9 @@ function startDashSharing() {
 }
 
 function _startSharing(role) {
+  // 🔥 WAJIB LOGIN
+  if (!_requireLogin()) return;
+
   if (!navigator.geolocation) {
     if (typeof toast === "function") toast("Geolocation tidak didukung.", "error");
     return;
@@ -158,14 +171,14 @@ function _startSharing(role) {
   }
 
   const ctx = _activeContext();
-  const driverName = (ctx.name && ctx.name.value.trim()) || "Driver " + Date.now();
+  const driverName = (ctx.name && ctx.name.value.trim()) || (currentUser.email || "Driver").split("@")[0];
   const vehicleName = (ctx.vehicle && ctx.vehicle.value.trim()) || "";
 
-  const driverId = "drv_" + Date.now();
+  const driverId = currentUser.uid;
   const truckId = "truck_" + Date.now();
-  const docId = driverId;
+  const docId = "drv_" + Date.now();
 
-  amSession = { driverId, driverName, truckId, vehicleName, role, docId };
+  amSession = { driverId, driverName, truckId, vehicleName, role, docId, userEmail: currentUser.email };
   amPath = [];
   amDist = 0;
   amStartTime = Date.now();
@@ -179,6 +192,7 @@ function _startSharing(role) {
 
   db.collection("live_tracking").doc(docId).set({
     driverId, driverName, truckId, vehicleName, role,
+    userEmail: currentUser.email,
     isActive: true,
     startTime: amStartTime,
     path: "",
@@ -192,17 +206,15 @@ function _startSharing(role) {
 }
 
 // ═══════════════════════════════════════════
-// 🔥 WATCH (PWA OPTIMIZED: watchPosition)
+// WATCH (watchPosition — hemat baterai)
 // ═══════════════════════════════════════════
 function _beginWatch() {
-  // Bersihkan watch lama kalau ada
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
   }
   if (amSaveTimer) clearInterval(amSaveTimer);
 
-  // Gunakan watchPosition (lebih akurat & hemat baterai untuk mobile)
   watchId = navigator.geolocation.watchPosition(
     pos => {
       if (!amIsActive) return;
@@ -234,7 +246,6 @@ function _beginWatch() {
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 
-  // Autosave routes tiap 30 detik
   amSaveTimer = setInterval(_saveToRoutes, 30000);
 
   // Listener: admin stop dari panel admin
@@ -259,6 +270,7 @@ function _saveToRoutes() {
     driverName: amSession.driverName,
     truckId: amSession.truckId,
     vehicleName: amSession.vehicleName,
+    userEmail: amSession.userEmail || "",
     startTime: amStartTime,
     path: encodePath(amPath),
     totalDistance: Math.round(amDist),
@@ -274,7 +286,6 @@ function _saveToRoutes() {
 function stopSharing(fromAdmin) {
   amIsActive = false;
 
-  // 🔥 Hentikan watchPosition
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
@@ -316,7 +327,7 @@ function stopSharing(fromAdmin) {
   amDist = 0;
   amLastPos = null;
 
-  _showStartMode(fromAdmin ? "📡 Mulai Share Lokasi" : "📡 Mulai Share Lokasi");
+  _showStartMode("📡 Mulai Share Lokasi");
   _setStatus(fromAdmin ? "⏹️ Tracking dihentikan oleh admin." : "⏹️ Tracking berhenti.", "#888");
 
   if (typeof toast === "function") {
@@ -324,6 +335,30 @@ function stopSharing(fromAdmin) {
   }
   if (typeof loadRouteHistory === "function") loadRouteHistory();
 }
+
+// ═══════════════════════════════════════════
+// 🔥 OVERRIDE: halaman Driver wajib login
+// ═══════════════════════════════════════════
+(function() {
+  if (typeof window.showDriverTracking === "function") {
+    const _orig = window.showDriverTracking;
+    window.showDriverTracking = function() {
+      if (typeof currentUser === "undefined" || !currentUser) {
+        if (typeof toast === "function") toast("🔐 Silakan login dulu untuk share lokasi.", "warning");
+        if (typeof showLogin === "function") showLogin();
+        return;
+      }
+      _orig();
+      // Auto-isi nama driver dari email
+      setTimeout(function() {
+        const dn = document.getElementById("driverName");
+        if (dn && !dn.value && currentUser && currentUser.email) {
+          dn.value = currentUser.email.split("@")[0];
+        }
+      }, 300);
+    };
+  }
+})();
 
 // Expose ke global
 window.amP = amP;
