@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
 // antimacet.js — EcoTRACK Driver Tracking (v13 — WAKE LOCK)
-console.log("%cANTIMACET v13 — wake lock aktif", "color:#ef6c00;font-weight:bold");
+console.log("%cANTIMACET v13 — wake lock aktif", "color:#ef6c00;font-weight:bold;font-size:14px");
 // ══════════════════════════════════════════════════════════════
 
 let amSession = null;
@@ -14,6 +14,7 @@ let amUnsubscribe = null;
 let watchId = null;
 let amWakeLock = null;
 
+// ═══ amP() — dipakai oleh amview.js ═══
 function amP() {
   return amSession ? {
     active: amIsActive,
@@ -26,6 +27,7 @@ function amP() {
   } : null;
 }
 
+// ═══ Helpers path ↔ string ═══
 function encodePath(arr) {
   return arr.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(";");
 }
@@ -37,6 +39,7 @@ function decodePath(str) {
   });
 }
 
+// ═══ CEK LOGIN: wajib login untuk share ═══
 function _requireLogin() {
   if (typeof currentUser === "undefined" || !currentUser) {
     if (typeof toast === "function") toast("🔐 Silakan login dulu untuk share lokasi.", "warning");
@@ -61,11 +64,11 @@ async function _requestWakeLock() {
 function _releaseWakeLock() {
   if (amWakeLock) { amWakeLock.release().catch(() => {}); amWakeLock = null; }
 }
-// Ambil lagi wake lock kalau aplikasi kembali terlihat
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && amIsActive) _requestWakeLock();
 });
 
+// ═══ UI helpers ═══
 function _activeContext() {
   if (!document.getElementById("driverTrackingView").classList.contains("hidden")) {
     return {
@@ -110,6 +113,7 @@ function _showStartMode(label) {
   if (ctx.stop) ctx.stop.style.display = "none";
 }
 
+// ═══ Inisialisasi: restore session ═══
 function amInit() {
   if (typeof db === "undefined") { setTimeout(amInit, 500); return; }
   const saved = localStorage.getItem("am_session");
@@ -144,6 +148,7 @@ function amInit() {
     .catch(err => console.warn("[antimacet] gagal cek sesi:", err));
 }
 
+// ═══ START (wajib login) ═══
 function startPublicSharing(e) {
   if (e && e.preventDefault) e.preventDefault();
   _startSharing("public");
@@ -203,11 +208,11 @@ function _startSharing(role) {
   });
 }
 
+// ═══ WATCH (watchPosition + wake lock) ═══
 function _beginWatch() {
   if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
   if (amSaveTimer) clearInterval(amSaveTimer);
 
-  // 🔥 Aktifkan wake lock: layar TIDAK akan auto-lock selama tracking
   _requestWakeLock();
 
   watchId = navigator.geolocation.watchPosition(
@@ -273,6 +278,7 @@ function _saveToRoutes() {
   }, { merge: true }).catch(err => console.warn("[antimacet] autosave routes gagal:", err));
 }
 
+// ═══ STOP ══
 function stopSharing(fromAdmin) {
   amIsActive = false;
 
@@ -324,7 +330,7 @@ function stopSharing(fromAdmin) {
   if (typeof loadRouteHistory === "function") loadRouteHistory();
 }
 
-// Override: halaman Driver wajib login
+// ═══ Override: halaman Driver wajib login ═══
 (function() {
   if (typeof window.showDriverTracking === "function") {
     const _orig = window.showDriverTracking;
@@ -345,6 +351,7 @@ function stopSharing(fromAdmin) {
   }
 })();
 
+// Expose ke global
 window.amP = amP;
 window.startPublicSharing = startPublicSharing;
 window.startDashSharing = startDashSharing;
