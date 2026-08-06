@@ -13,6 +13,17 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="style.css">
+
+<!-- ═══════════════════════════════════════════
+     PWA META TAGS
+═══════════════════════════════════════════ -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EcoTRACK">
+<meta name="description" content="Sistem pemantauan pengambilan sampah & live tracking armada - CV Rezeki Amanah Jaya Group">
 </head>
 <body>
 
@@ -258,12 +269,25 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SCRIPTS — URUTAN WAJIB (cache buster v7)
+     SCRIPTS — URUTAN WAJIB (cache buster v8)
 ═══════════════════════════════════════════ -->
-<script src="app.js?v=7"></script>
-<script src="antimacet.js?v=14"></script>
-<script src="amview.js?v=6"></script>
-<script src="adminctl.js?v=6"></script>
+<script src="app.js?v=8"></script>
+<script src="antimacet.js?v=15"></script>
+<script src="amview.js?v=7"></script>
+<script src="adminctl.js?v=7"></script>
+
+<!-- ═══════════════════════════════════════════
+     PWA SERVICE WORKER REGISTRATION
+═══════════════════════════════════════════ -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('✅ PWA Service Worker registered'))
+      .catch(err => console.log('❌ SW registration failed:', err));
+  });
+}
+</script>
 
 <!-- ═══════════════════════════════════════════
      INIT LIVE TRACKING LISTENERS
