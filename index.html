@@ -14,9 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="style.css">
 
-<!-- ═══════════════════════════════════════════
-     PWA META TAGS
-═══════════════════════════════════════════ -->
+<!-- PWA Meta Tags -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2e7d32">
 <link rel="apple-touch-icon" href="logo.png">
@@ -43,7 +41,7 @@
       <img src="logo.png" class="logo-img" onerror="this.style.display='none'">
       <div class="logo-text"><span class="brand">EcoTRACK</span><span class="sub">CV Rezeki Amanah Jaya</span></div>
     </div>
-    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <button class="menu-toggle" type="button" aria-label="Toggle menu">☰</button>
     <div class="nav-links" id="navLinks">
       <a href="#dashboard">Dashboard</a>
       <a href="#trackingPublic">🗺️ Live Tracking</a>
@@ -113,7 +111,7 @@
       <img src="logo.png" class="logo-img" onerror="this.style.display='none'">
       <div class="logo-text"><span class="brand" id="dashBrand">Dashboard</span><span class="sub">EcoTRACK</span></div>
     </div>
-    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <button class="menu-toggle" type="button" aria-label="Toggle menu">☰</button>
     <div class="nav-links" id="dashNavLinks">
       <a href="#dashTracking">🗺️ Live Tracking</a>
       <a href="#dashShare" id="navShare">📡 Share Lokasi</a>
@@ -269,32 +267,27 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SCRIPTS — URUTAN WAJIB (cache buster v8)
+     SCRIPTS — URUTAN WAJIB (cache buster v9)
 ═══════════════════════════════════════════ -->
-<script src="app.js?v=8"></script>
-<script src="antimacet.js?v=15"></script>
-<script src="amview.js?v=7"></script>
-<script src="adminctl.js?v=7"></script>
+<script src="app.js?v=9"></script>
+<script src="antimacet.js?v=16"></script>
+<script src="amview.js?v=8"></script>
+<script src="adminctl.js?v=8"></script>
 
-<!-- ═══════════════════════════════════════════
-     PWA SERVICE WORKER REGISTRATION
-═══════════════════════════════════════════ -->
+<!-- PWA Service Worker Registration -->
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('✅ PWA Service Worker registered'))
-      .catch(err => console.log('❌ SW registration failed:', err));
+      .then(function(reg) { console.log('✅ PWA Service Worker registered'); })
+      .catch(function(err) { console.log('❌ SW registration failed:', err); });
   });
 }
 </script>
 
-<!-- ═══════════════════════════════════════════
-     INIT LIVE TRACKING LISTENERS
-═══════════════════════════════════════════ -->
+<!-- Init Live Tracking Listeners -->
 <script>
 (function() {
-  // Helper: admin stop driver dari tabel
   window.adminStopSelected = function(driverId) {
     if (!driverId) { toast("Driver ID kosong.", "error"); return; }
     if (typeof adminStopVehicle === "function") {
@@ -304,46 +297,43 @@ if ('serviceWorker' in navigator) {
         isActive: false,
         endTime: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).then(() => {
+      }, { merge: true }).then(function() {
         toast("Tracking " + driverId + " dihentikan.", "success");
         if (typeof loadRouteHistory === "function") loadRouteHistory();
-      }).catch(err => toast("Gagal stop: " + err.message, "error"));
+      }).catch(function(err) { toast("Gagal stop: " + err.message, "error"); });
     }
   };
 
-  // Listener real-time untuk peta publik
   function initPublicLiveTracking() {
     if (typeof listenToLiveTracking === "function") {
       listenToLiveTracking(null, "public", true);
     }
   }
 
-  // Listener real-time untuk dashboard admin
   function initDashLiveTracking() {
     if (typeof listenToLiveTracking === "function") {
       listenToLiveTracking("dashArmadaBody", "dash", false);
     }
   }
 
-  // Auto-restore: cek sesi driver setelah halaman load
   function checkDriverSession() {
-    const saved = localStorage.getItem("am_session");
+    var saved = localStorage.getItem("am_session");
     if (!saved) return;
 
-    const btnStart = document.getElementById("btnStartTrack");
-    const btnStop = document.getElementById("btnStopTrack");
-    const driverForm = document.getElementById("driverForm");
+    var btnStart = document.getElementById("btnStartTrack");
+    var btnStop = document.getElementById("btnStopTrack");
+    var driverForm = document.getElementById("driverForm");
 
     if (btnStart && btnStop) {
       try {
-        const sess = JSON.parse(saved);
+        var sess = JSON.parse(saved);
         btnStart.textContent = "🔄 Lanjutkan Berbagi Lokasi";
         btnStart.style.display = "";
         btnStop.style.display = "none";
 
         if (driverForm) {
-          const dn = document.getElementById("driverName");
-          const vn = document.getElementById("vehicleName");
+          var dn = document.getElementById("driverName");
+          var vn = document.getElementById("vehicleName");
           if (dn && !dn.value && sess.driverName) dn.value = sess.driverName;
           if (vn && !vn.value && sess.vehicleName) vn.value = sess.vehicleName;
         }
@@ -353,14 +343,73 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Init setelah semua script dimuat
-  window.addEventListener("load", () => {
-    setTimeout(() => {
+  window.addEventListener("load", function() {
+    setTimeout(function() {
       initPublicLiveTracking();
       initDashLiveTracking();
       checkDriverSession();
     }, 2500);
   });
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════
+     HAMBURGER MENU FIX (PASTI JALAN)
+═══════════════════════════════════════════ -->
+<script>
+(function() {
+  function initHamburger() {
+    var toggles = document.querySelectorAll('.menu-toggle');
+    
+    toggles.forEach(function(btn) {
+      // Hapus onclick lama kalau ada
+      btn.onclick = null;
+      btn.removeAttribute('onclick');
+      
+      // Tambahkan event listener langsung
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var navbar = btn.closest('.navbar');
+        if (!navbar) return;
+        
+        var navLinks = navbar.querySelector('.nav-links');
+        if (!navLinks) return;
+        
+        navLinks.classList.toggle('show');
+        console.log('🍔 Hamburger clicked, menu show:', navLinks.classList.contains('show'));
+      });
+    });
+    
+    // Tutup menu saat klik di luar
+    document.addEventListener('click', function(e) {
+      var openMenus = document.querySelectorAll('.nav-links.show');
+      openMenus.forEach(function(menu) {
+        if (!menu.contains(e.target) && !e.target.closest('.menu-toggle')) {
+          menu.classList.remove('show');
+        }
+      });
+    });
+    
+    // Tutup menu saat klik link di dalamnya
+    document.querySelectorAll('.nav-links a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var navLinks = link.closest('.nav-links');
+        if (navLinks) navLinks.classList.remove('show');
+      });
+    });
+  }
+  
+  // Jalankan saat DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHamburger);
+  } else {
+    initHamburger();
+  }
+  
+  // Jalankan lagi setelah 2 detik (jaga-jaga dynamic content)
+  setTimeout(initHamburger, 2000);
 })();
 </script>
 
