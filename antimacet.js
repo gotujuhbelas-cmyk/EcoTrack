@@ -1,5 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// antimacet.js — EcoTRACK Driver Tracking (v12 — WAJIB LOGIN)
+// antimacet.js — EcoTRACK Driver Tracking (v13 — WAKE LOCK)
+console.log("%cANTIMACET v13 — wake lock aktif", "color:#ef6c00;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 let amSession = null;
@@ -11,10 +12,8 @@ let amLastPos = null;
 let amStartTime = null;
 let amUnsubscribe = null;
 let watchId = null;
+let amWakeLock = null;
 
-// ═══════════════════════════════════════════
-// amP() — dipakai oleh amview.js
-// ═══════════════════════════════════════════
 function amP() {
   return amSession ? {
     active: amIsActive,
@@ -27,9 +26,6 @@ function amP() {
   } : null;
 }
 
-// ═══════════════════════════════════════════
-// Helpers
-// ═══════════════════════════════════════════
 function encodePath(arr) {
   return arr.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(";");
 }
@@ -41,7 +37,6 @@ function decodePath(str) {
   });
 }
 
-// 🔥 CEK LOGIN: wajib login untuk share lokasi
 function _requireLogin() {
   if (typeof currentUser === "undefined" || !currentUser) {
     if (typeof toast === "function") toast("🔐 Silakan login dulu untuk share lokasi.", "warning");
@@ -51,9 +46,26 @@ function _requireLogin() {
   return true;
 }
 
-// ═══════════════════════════════════════════
-// UI helpers
-// ═══════════════════════════════════════════
+// ═══ WAKE LOCK: cegah layar mati saat tracking ═══
+async function _requestWakeLock() {
+  try {
+    if ("wakeLock" in navigator) {
+      amWakeLock = await navigator.wakeLock.request("screen");
+      amWakeLock.addEventListener("release", () => { amWakeLock = null; });
+      console.log("[antimacet] Wake Lock aktif — layar tetap menyala");
+    }
+  } catch (err) {
+    console.warn("[antimacet] Wake Lock gagal:", err.message);
+  }
+}
+function _releaseWakeLock() {
+  if (amWakeLock) { amWakeLock.release().catch(() => {}); amWakeLock = null; }
+}
+// Ambil lagi wake lock kalau aplikasi kembali terlihat
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && amIsActive) _requestWakeLock();
+});
+
 function _activeContext() {
   if (!document.getElementById("driverTrackingView").classList.contains("hidden")) {
     return {
@@ -98,21 +110,14 @@ function _showStartMode(label) {
   if (ctx.stop) ctx.stop.style.display = "none";
 }
 
-// ═══════════════════════════════════════════
-// Inisialisasi: restore session
-// ═══════════════════════════════════════════
 function amInit() {
-  if (typeof db === "undefined") {
-    setTimeout(amInit, 500);
-    return;
-  }
+  if (typeof db === "undefined") { setTimeout(amInit, 500); return; }
   const saved = localStorage.getItem("am_session");
   if (!saved) return;
 
   let sess;
   try { sess = JSON.parse(saved); }
   catch { localStorage.removeItem("am_session"); return; }
-
   amSession = sess;
 
   db.collection("live_tracking").doc(sess.docId || sess.driverId)
@@ -125,14 +130,11 @@ function amInit() {
         amStartTime = data.startTime || Date.now();
         amIsActive = true;
         amLastPos = amPath.length ? amPath[amPath.length - 1] : null;
-
         _showStartMode("🔄 Lanjutkan Berbagi Lokasi");
         _setStatus("Sesi ditemukan. Klik tombol untuk melanjutkan tracking.", "#2e7d32");
-
         const ctx = _activeContext();
         if (ctx.name && !ctx.name.value && sess.driverName) ctx.name.value = sess.driverName;
         if (ctx.vehicle && !ctx.vehicle.value && sess.vehicleName) ctx.vehicle.value = sess.vehicleName;
-
         if (typeof toast === "function") toast("Sesi tracking ditemukan. Silakan lanjutkan.", "info");
       } else {
         localStorage.removeItem("am_session");
@@ -142,9 +144,6 @@ function amInit() {
     .catch(err => console.warn("[antimacet] gagal cek sesi:", err));
 }
 
-// ═══════════════════════════════════════════
-// START (wajib login)
-// ═══════════════════════════════════════════
 function startPublicSharing(e) {
   if (e && e.preventDefault) e.preventDefault();
   _startSharing("public");
@@ -154,7 +153,6 @@ function startDashSharing() {
 }
 
 function _startSharing(role) {
-  // 🔥 WAJIB LOGIN
   if (!_requireLogin()) return;
 
   if (!navigator.geolocation) {
@@ -165,7 +163,7 @@ function _startSharing(role) {
   if (amSession && amIsActive) {
     _beginWatch();
     _showStopMode();
-    _setStatus("🟢 Tracking dilanjutkan...", "#2e7d32");
+    _setStatus("🟢 Tracking dilanjutkan... layar tetap menyala.", "#2e7d32");
     if (typeof toast === "function") toast("Tracking dilanjutkan!", "success");
     return;
   }
@@ -205,15 +203,12 @@ function _startSharing(role) {
   });
 }
 
-// ═══════════════════════════════════════════
-// WATCH (watchPosition — hemat baterai)
-// ═══════════════════════════════════════════
 function _beginWatch() {
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
   if (amSaveTimer) clearInterval(amSaveTimer);
+
+  // 🔥 Aktifkan wake lock: layar TIDAK akan auto-lock selama tracking
+  _requestWakeLock();
 
   watchId = navigator.geolocation.watchPosition(
     pos => {
@@ -237,7 +232,7 @@ function _beginWatch() {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true }).catch(err => console.warn("[antimacet] kirim lokasi gagal:", err));
 
-      _setStatus(`🟢 Aktif — ${(amDist/1000).toFixed(2)} km, ${amPath.length} titik`, "#2e7d32");
+      _setStatus(`🟢 Aktif — ${(amDist/1000).toFixed(2)} km, ${amPath.length} titik • 🔆 layar menyala`, "#2e7d32");
     },
     err => {
       console.warn("[antimacet] GPS error:", err.message);
@@ -248,7 +243,6 @@ function _beginWatch() {
 
   amSaveTimer = setInterval(_saveToRoutes, 30000);
 
-  // Listener: admin stop dari panel admin
   if (amUnsubscribe) amUnsubscribe();
   if (amSession && typeof db !== "undefined") {
     amUnsubscribe = db.collection("live_tracking").doc(amSession.docId)
@@ -264,7 +258,6 @@ function _beginWatch() {
 
 function _saveToRoutes() {
   if (!amIsActive || !amSession || amPath.length < 2) return;
-
   db.collection("routes").doc(amSession.docId).set({
     driverId: amSession.driverId,
     driverName: amSession.driverName,
@@ -280,18 +273,13 @@ function _saveToRoutes() {
   }, { merge: true }).catch(err => console.warn("[antimacet] autosave routes gagal:", err));
 }
 
-// ═══════════════════════════════════════════
-// STOP
-// ═══════════════════════════════════════════
 function stopSharing(fromAdmin) {
   amIsActive = false;
 
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
   if (amSaveTimer) { clearInterval(amSaveTimer); amSaveTimer = null; }
   if (amUnsubscribe) { amUnsubscribe(); amUnsubscribe = null; }
+  _releaseWakeLock();
 
   if (amSession && typeof db !== "undefined") {
     const docId = amSession.docId;
@@ -336,9 +324,7 @@ function stopSharing(fromAdmin) {
   if (typeof loadRouteHistory === "function") loadRouteHistory();
 }
 
-// ═══════════════════════════════════════════
-// 🔥 OVERRIDE: halaman Driver wajib login
-// ═══════════════════════════════════════════
+// Override: halaman Driver wajib login
 (function() {
   if (typeof window.showDriverTracking === "function") {
     const _orig = window.showDriverTracking;
@@ -349,7 +335,6 @@ function stopSharing(fromAdmin) {
         return;
       }
       _orig();
-      // Auto-isi nama driver dari email
       setTimeout(function() {
         const dn = document.getElementById("driverName");
         if (dn && !dn.value && currentUser && currentUser.email) {
@@ -360,7 +345,6 @@ function stopSharing(fromAdmin) {
   }
 })();
 
-// Expose ke global
 window.amP = amP;
 window.startPublicSharing = startPublicSharing;
 window.startDashSharing = startDashSharing;
