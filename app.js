@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// app.js — EcoTRACK (FINAL v11)
-// FIX: koleksi "sampah" (bukan "data"), field "fotos" (bukan "foto")
+// app.js — EcoTRACK (FINAL v13 — fix invalid date)
+console.log("%cAPP.JS v13 — fix invalid date", "color:#2e7d32;font-weight:bold;font-size:14px");
 // ══════════════════════════════════════════════════════════════
 
 const firebaseConfig = {
@@ -16,7 +16,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// ─── Global State ─────────────────────────────────────────────
 let currentUser = null;
 let currentRole = null;
 let maps = {};
@@ -25,11 +24,8 @@ let routeHistory = [];
 let unsubRoute = null;
 let selectedFiles = [];
 let editSelectedFiles = [];
-
-// 🔥 Foto dari kamera
 window.capturedPhotos = window.capturedPhotos || [];
 
-// ─── Haversine ────────────────────────────────────────────────
 function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -40,7 +36,23 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Toast ───────────────────────────────────────────────────
+// 🔥 Helper: parse tanggal aman (handle Firestore timestamp & number)
+function parseDate(val) {
+  if (!val) return null;
+  if (val.toDate && typeof val.toDate === "function") {
+    const d = val.toDate();
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === "number") { const d = new Date(val); return isNaN(d.getTime()) ? null : d; }
+  if (typeof val === "string") { const d = new Date(val); return isNaN(d.getTime()) ? null : d; }
+  return null;
+}
+function fmtDate(val) {
+  const d = parseDate(val);
+  return d ? d.toLocaleString("id-ID") : null;
+}
+
 function toast(msg, type = "info") {
   let wrap = document.getElementById("toastWrap");
   if (!wrap) {
@@ -68,7 +80,6 @@ function hideLoading() {
   if (overlay) overlay.classList.add("hidden");
 }
 
-// ─── View Switching ───────────────────────────────────────────
 function showPublic() {
   document.getElementById("publicView").classList.remove("hidden");
   document.getElementById("loginView").classList.add("hidden");
@@ -93,7 +104,6 @@ function toggleMenu() {
   document.querySelectorAll(".nav-links").forEach(el => el.classList.toggle("show"));
 }
 
-// ─── Auth ─────────────────────────────────────────────────────
 function doFirebaseLogin(e) {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
@@ -142,7 +152,6 @@ function showDashboard(user, role) {
   setTimeout(() => { initMap("dash"); initMap("dashShare"); updateLiveMap("dash"); loadRouteHistory(); loadDashboardStats(); loadDashData(); }, 300);
 }
 
-// ─── Map ──────────────────────────────────────────────────────
 function initMap(context) {
   const mapIds = { public: "mapPublic", dash: "mapDash", share: "mapShare", dashShare: "mapDashShare" };
   const id = mapIds[context];
@@ -181,7 +190,7 @@ function updateLiveMap(context) {
   }, err => console.warn("[liveMap]", err));
 }
 
-// ─── Route History ────────────────────────────────────────────
+// ═══ RIWAYAT RUTE — FIX INVALID DATE ═══
 function loadRouteHistory() {
   const tbody = document.getElementById("routeTableDash");
   if (!tbody) return;
@@ -193,12 +202,22 @@ function loadRouteHistory() {
     snap.forEach(doc => {
       const d = doc.data();
       routeHistory.push({ id: doc.id, ...d });
-      const start = d.startTime ? new Date(d.startTime).toLocaleString("id-ID") : "-";
-      const end = d.endTime ? new Date(d.endTime).toLocaleString("id-ID") : (d.isActive ? "🟢 Berjalan" : "-");
+
+      const start = fmtDate(d.startTime) || "-";
+      const end = d.isActive === true ? "🟢 Berjalan" : (fmtDate(d.endTime) || "-");
       const pts = d.pointCount || (d.path ? d.path.split(";").length : 0);
       const km = d.totalDistance ? (d.totalDistance / 1000).toFixed(2) + " km" : "0 km";
+
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${start}</td><td>${end}</td><td>${d.vehicleName || d.truckId || "-"}</td><td>${d.driverName || d.driverId || "-"}</td><td>${km}</td><td>${pts}</td><td>${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteRoute('${doc.id}')">🗑️</button>` : ""}</td>`;
+      tr.innerHTML = `
+        <td>${start}</td>
+        <td>${end}</td>
+        <td>${d.vehicleName || d.truckId || "-"}</td>
+        <td>${d.driverName || d.driverId || "-"}</td>
+        <td>${km}</td>
+        <td>${pts}</td>
+        <td>${isAdminCtl() ? `<button class="btn btn-sm btn-danger" onclick="adminDeleteRoute('${doc.id}')">🗑️</button>` : ""}</td>
+      `;
       tbody.appendChild(tr);
     });
   }, err => console.warn("[routeHistory]", err));
@@ -211,9 +230,6 @@ function deleteRoute(docId) {
     .catch(err => toast("Gagal hapus: " + err.message, "error"));
 }
 
-// ═══════════════════════════════════════════
-// 🔥 FIX: koleksi "sampah" (bukan "data")
-// ═══════════════════════════════════════════
 function loadDashboardStats() {
   db.collection("sampah").get()
     .then(snap => {
@@ -240,7 +256,6 @@ function loadDashboardStats() {
     .catch(err => console.warn("[stats]", err));
 }
 
-// ─── File Upload + Kamera ─────────────────────────────────────
 function handleFileSelect(e) {
   selectedFiles = Array.from(e.target.files).slice(0, 5);
   updateFileListUI();
@@ -289,13 +304,11 @@ function fileToBase64(file) {
   });
 }
 
-// 🔥 FIX: simpan ke "sampah", field "fotos"
 async function addData(e) {
   e.preventDefault();
   showLoading("Menyimpan data...");
   try {
     const allFiles = (window.capturedPhotos || []).concat(selectedFiles).slice(0, 5);
-
     const doc = {
       tanggal: document.getElementById("fTanggal").value,
       jenis: document.getElementById("fJenis").value,
@@ -307,7 +320,6 @@ async function addData(e) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdBy: currentUser ? currentUser.email : "unknown"
     };
-
     const fotoUrls = [];
     for (const file of allFiles) {
       try {
@@ -316,17 +328,14 @@ async function addData(e) {
         fotoUrls.push(b64);
       } catch (err) { console.warn("Foto gagal diproses:", err); }
     }
-    doc.fotos = fotoUrls;  // 🔥 field "fotos" sesuai data existing
-
+    doc.fotos = fotoUrls;
     await db.collection("sampah").add(doc);
     toast("Data berhasil disimpan!", "success");
-
     e.target.reset();
     selectedFiles = [];
     window.capturedPhotos = [];
     updateFileListUI();
     if (typeof closeCamera === "function") closeCamera();
-
     loadDashboardStats();
     loadDashData();
     hideLoading();
@@ -337,7 +346,6 @@ async function addData(e) {
   }
 }
 
-// 🔥 FIX: baca dari "sampah", field "fotos"
 function loadDashData() {
   const tbody = document.getElementById("dashDataTable");
   if (!tbody) return;
@@ -351,12 +359,7 @@ function loadDashData() {
         const fotos = d.fotos || d.foto || [];
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${d.tanggal}</td>
-          <td>${d.jenis}</td>
-          <td>${d.berat} kg</td>
-          <td>${d.diolah} kg</td>
-          <td>${d.residu} kg</td>
-          <td>${d.petugas}</td>
+          <td>${d.tanggal}</td><td>${d.jenis}</td><td>${d.berat} kg</td><td>${d.diolah} kg</td><td>${d.residu} kg</td><td>${d.petugas}</td>
           <td>${fotos.length > 0 ? `<button class="btn btn-sm" onclick="showPhotos('${doc.id}')">📷 ${fotos.length}</button>` : "-"}</td>
           <td>
             <button class="btn btn-sm" onclick="openEdit('${doc.id}')">✏️</button>
@@ -368,7 +371,6 @@ function loadDashData() {
     });
 }
 
-// ─── Edit Data ────────────────────────────────────────────────
 let editDocId = null;
 function openEdit(id) {
   editDocId = id;
@@ -384,11 +386,7 @@ function openEdit(id) {
     document.getElementById("eCatatan").value = d.catatan || "";
     const gallery = document.getElementById("eExistingPhotos");
     const fotos = d.fotos || d.foto || [];
-    if (gallery) {
-      gallery.innerHTML = fotos.map(url => `
-        <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;cursor:pointer" onclick="viewPhoto('${url}')">
-      `).join("");
-    }
+    if (gallery) gallery.innerHTML = fotos.map(url => `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;cursor:pointer" onclick="viewPhoto('${url}')">`).join("");
     document.getElementById("editModal").classList.add("show");
   });
 }
@@ -420,7 +418,6 @@ function deleteData(id) {
     .then(() => { toast("Data dihapus.", "success"); loadDashData(); loadDashboardStats(); });
 }
 
-// ─── Photo Viewer ─────────────────────────────────────────────
 function showPhotos(docId) {
   db.collection("sampah").doc(docId).get().then(doc => {
     const d = doc.data();
@@ -433,7 +430,6 @@ function showPhotos(docId) {
 function viewPhoto(url) { window.open(url, "_blank"); }
 function closePhotoModal() { document.getElementById("photoModal").classList.remove("show"); }
 
-// ─── Reports ──────────────────────────────────────────────────
 function toggleCustomDate() {
   const period = document.getElementById("reportPeriod").value;
   document.getElementById("dailyDateGroup").classList.toggle("hidden", period !== "daily");
@@ -479,7 +475,6 @@ function generateReport() {
     });
 }
 
-// ─── Public Chart ─────────────────────────────────────────────
 function loadPublicChart() {
   const ctx = document.getElementById("pubChart");
   if (!ctx) return;
@@ -493,16 +488,12 @@ function loadPublicChart() {
     const data = labels.map(l => grouped[l]);
     new Chart(ctx, {
       type: "line",
-      data: {
-        labels: labels.length ? labels : ["-"],
-        datasets: [{ label: "Sampah Terangkut (kg)", data: data.length ? data : [0], borderColor: "#2e7d32", backgroundColor: "rgba(46,125,50,.1)", fill: true, tension: 0.4 }]
-      },
+      data: { labels: labels.length ? labels : ["-"], datasets: [{ label: "Sampah Terangkut (kg)", data: data.length ? data : [0], borderColor: "#2e7d32", backgroundColor: "rgba(46,125,50,.1)", fill: true, tension: 0.4 }] },
       options: { responsive: true, maintainAspectRatio: false }
     });
   });
 }
 
-// ─── Public Data ──────────────────────────────────────────────
 function loadPublicData() {
   const tbody = document.getElementById("pubTable");
   if (!tbody) return;
@@ -522,7 +513,6 @@ function loadPublicData() {
     });
 }
 
-// ─── Splash ───────────────────────────────────────────────────
 window.addEventListener("load", () => {
   setTimeout(() => {
     const splash = document.getElementById("splashScreen");
@@ -531,7 +521,6 @@ window.addEventListener("load", () => {
   }, 2000);
 });
 
-// ─── Expose Globals ───────────────────────────────────────────
 window.db = db;
 window.auth = auth;
 window.maps = maps;
