@@ -1,13 +1,17 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v3: kop center + foto di surat jalan
-console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v4: format surat resmi RAJ
+console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
 
   const BASE_URL = "https://hood.rezekiamanahjaya.com";
 
-  // ─── Helper: download CSV (kompatibel Excel) ───
+  // ✏️ EDIT BEBAS: alamat di kop & penerima surat
+  const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamulya, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
+  const KEPADA_HTML = "Kepada Yth.<br><b>Kepala Dinas Lingkungan Hidup dan Kebersihan</b><br><b>Kabupaten Tangerang</b><br>di<br><b>Tempat</b>";
+
+  // ─── Helper: download CSV ───
   function downloadCSV(filename, rows) {
     const esc = v => {
       v = (v === null || v === undefined) ? "" : String(v);
@@ -23,7 +27,7 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
     URL.revokeObjectURL(a.href);
   }
 
-  // ─── Helper: bulan Romawi ───
+  // ─── Helper: bulan Romawi & tanggal panjang ───
   function romanMonth(tanggal) {
     const romans = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
     let m = new Date().getMonth();
@@ -33,8 +37,14 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
     }
     return romans[m];
   }
+  function longDate(tanggal) {
+    const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    let d = new Date();
+    if (tanggal) { const t = new Date(tanggal + "T00:00:00"); if (!isNaN(t.getTime())) d = t; }
+    return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+  }
 
-  // ─── Helper: nomor urut SJ per bulan (SJ/001/VIII/RAJ) ───
+  // ─── Nomor: 030/RAJ/VIII/2026 ───
   async function nextSJNumber(tanggal) {
     const ym = (tanggal || new Date().toISOString().slice(0, 10)).slice(0, 7);
     const start = ym + "-01";
@@ -48,23 +58,27 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
       count = snap.size;
     } catch (e) { count = 0; }
     const seq = String(count + 1).padStart(3, "0");
-    return "SJ/" + seq + "/" + romanMonth(tanggal) + "/RAJ";
+    const year = ym.slice(0, 4);
+    return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v3: KOP CENTER + FOOTER PROFESIONAL ═══
+  // ═══ KERANGKA CETAK v4: KOP RESMI (logo kiri, teks center) ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
     'body{font-family:Arial,sans-serif;color:#111;padding:30px;font-size:14px}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
-    '.head{text-align:center;border-bottom:4px double #1b5e20;padding-bottom:12px;margin-bottom:20px}' +
-    '.head img{width:72px;height:72px;object-fit:cover;display:block;margin:0 auto 6px}' +
-    '.head h1{margin:0;font-size:20px;color:#1b5e20;letter-spacing:1px;text-transform:uppercase}' +
-    '.head p{margin:2px 0 0;font-size:12px;color:#555}' +
-    'h2{font-size:16px;text-decoration:underline;margin:0 0 14px;text-align:center;letter-spacing:1px}' +
+    '.head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
+    '.head img{width:80px;height:80px;object-fit:cover}' +
+    '.head-text{flex:1;text-align:center}' +
+    '.head h1{margin:0;font-size:20px;letter-spacing:1px;color:#333}' +
+    '.head .sub{margin:3px 0;font-size:12px;color:#555;letter-spacing:2px}' +
+    '.head .addr{margin:0;font-size:10.5px;color:#666}' +
+    '.head-line{border-bottom:1px solid #444;margin-bottom:20px}' +
+    'h2{font-size:15px;text-decoration:underline;margin:0 0 14px;text-align:center;letter-spacing:1px}' +
     'table{border-collapse:collapse;width:100%}' +
-    'table.doc td{padding:5px 8px;vertical-align:top}' +
+    'table.doc td{padding:4px 8px;vertical-align:top}' +
     'table.grid th,table.grid td{border:1px solid #333;padding:6px 8px;font-size:12px;text-align:left}' +
     'table.grid th{background:#e8f5e9}' +
     '.foto-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}' +
@@ -84,16 +98,19 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
     '<img class="kop-img" src="' + BASE_URL + '/kop.png" onerror="this.style.display=\'none\'">' +
     '<div class="head" id="headText">' +
       '<img src="' + BASE_URL + '/logo.png" onerror="this.style.display=\'none\'">' +
-      '<h1>CV Rezeki Amanah Jaya Group</h1>' +
-      '<p>Supplier &amp; Waste Solution Partner</p>' +
-      '<p>The Hood &mdash; Summarecon Serpong</p>' +
+      '<div class="head-text">' +
+        '<h1>CV REZEKI AMANAH JAYA GROUP</h1>' +
+        '<p class="sub">SUPPLIER &amp; WASTE SOLUTION PARTNER</p>' +
+        '<p class="addr">' + ALAMAT_KOP + '</p>' +
+      '</div>' +
     '</div>' +
+    '<div class="head-line"></div>' +
     '<h2>' + docTitle + '</h2>' +
     bodyHtml +
     '<div class="foot">Dokumen dibuat otomatis oleh EcoTRACK &bull; Dicetak: ' + new Date().toLocaleString("id-ID") + ' &bull; Oleh: ' + printedBy + '</div>' +
     '<div class="no-print"><button onclick="window.print()">🖨️ Cetak / Simpan PDF</button></div>' +
     '<scr' + 'ipt>document.addEventListener("DOMContentLoaded",function(){' +
-    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="block";};' +
+    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="flex";};' +
     'k.onload=function(){var h=document.getElementById("headText");if(h)h.style.display="none";};' +
     'k.src="' + BASE_URL + '/kop.png";});</scr' + 'ipt>' +
     '</body></html>';
@@ -135,8 +152,7 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
     });
 
     const body =
-      "<p style=\"text-align:center\">Periode: <b>" + (document.getElementById("reportPeriod") ? document.getElementById("reportPeriod").value : "-") +
-      "</b></p>" +
+      "<p style=\"text-align:right;margin:0 0 12px\">Tangerang, " + longDate() + "</p>" +
       '<table class="grid">' + rowsHtml + "</table>" +
       "<p style=\"margin-top:14px;text-align:center\">Total Pengambilan: <b>" + g("rptTotalPickup") + "</b> &nbsp;|&nbsp; " +
       "Total Berat: <b>" + g("rptTotalWeight") + "</b> &nbsp;|&nbsp; " +
@@ -152,7 +168,7 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v3 — DENGAN LAMPIRAN FOTO ═══
+  // ═══ 3) SURAT JALAN v4 — FORMAT RESMI ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
@@ -160,7 +176,6 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
       const d = doc.data();
 
       const doPrint = (nomor) => {
-        // Lampiran foto (kalau ada)
         const fotos = d.fotos || d.foto || [];
         let fotoHtml = "";
         if (fotos.length) {
@@ -172,9 +187,18 @@ console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;fo
         }
 
         const body =
-          '<table class="doc">' +
-          "<tr><td style=\"width:150px\">Nomor</td><td>: <b>" + nomor + "</b></td></tr>" +
-          "<tr><td>Tanggal</td><td>: " + (d.tanggal || "-") + "</td></tr>" +
+          '<table style="width:100%"><tr>' +
+          '<td style="width:60%;vertical-align:top"><table class="doc">' +
+          '<tr><td style="width:70px">Nomor</td><td>: <b>' + nomor + '</b></td></tr>' +
+          '<tr><td>Perihal</td><td>: <b>Surat Jalan Pengangkutan Sampah</b></td></tr>' +
+          '</table></td>' +
+          '<td style="vertical-align:top;text-align:right">Tangerang, ' + longDate(d.tanggal) + '</td>' +
+          '</tr></table>' +
+          '<p style="margin:20px 0 0">' + KEPADA_HTML + '</p>' +
+          '<p style="margin:16px 0 0;text-indent:40px">Dengan hormat,</p>' +
+          '<p style="text-indent:40px">Sehubungan dengan kegiatan pengangkutan sampah yang dilaksanakan oleh <b>CV Rezeki Amanah Jaya Group</b>, bersama ini kami sampaikan rincian pengambilan sebagai berikut:</p>' +
+          '<table class="doc" style="margin-top:10px">' +
+          "<tr><td style=\"width:150px\">Tanggal</td><td>: " + (d.tanggal || "-") + "</td></tr>" +
           "<tr><td>Jenis Sampah</td><td>: " + (d.jenis || "-") + "</td></tr>" +
           "<tr><td>Berat</td><td>: " + (d.berat || 0) + " kg</td></tr>" +
           "<tr><td>Diolah</td><td>: " + (d.diolah || 0) + " kg</td></tr>" +
