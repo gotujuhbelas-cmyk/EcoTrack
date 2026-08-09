@@ -1,17 +1,16 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v4: format surat resmi RAJ
-console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v5: layout A4 profesional
+console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
 
   const BASE_URL = "https://hood.rezekiamanahjaya.com";
 
-  // ✏️ EDIT BEBAS: alamat di kop & penerima surat
+  // ✏️ EDIT BEBAS: alamat kop & penerima
   const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamulya, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
-  const KEPADA_HTML = "Kepada Yth.<br><b>Kepala Dinas Lingkungan Hidup dan Kebersihan</b><br><b>Kabupaten Tangerang</b><br>di<br><b>Tempat</b>";
+  const KEPADA_HTML = "Kepada Yth.<br><b>Pengelola The Hood &mdash; Summarecon</b><br><b>BSD City</b><br>di<br><b>Tempat</b>";
 
-  // ─── Helper: download CSV ───
   function downloadCSV(filename, rows) {
     const esc = v => {
       v = (v === null || v === undefined) ? "" : String(v);
@@ -27,7 +26,6 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
     URL.revokeObjectURL(a.href);
   }
 
-  // ─── Helper: bulan Romawi & tanggal panjang ───
   function romanMonth(tanggal) {
     const romans = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
     let m = new Date().getMonth();
@@ -40,11 +38,10 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
   function longDate(tanggal) {
     const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     let d = new Date();
-    if (tanggal) { const t = new Date(tanggal + "T00:00:00"); if (!isNaN(t.getTime())) d = t; }
+    if (tanggal) { const t = new Date(String(tanggal) + "T00:00:00"); if (!isNaN(t.getTime())) d = t; }
     return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
   }
 
-  // ─── Nomor: 030/RAJ/VIII/2026 ───
   async function nextSJNumber(tanggal) {
     const ym = (tanggal || new Date().toISOString().slice(0, 10)).slice(0, 7);
     const start = ym + "-01";
@@ -62,46 +59,47 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v4: KOP RESMI (logo kiri, teks center) ═══
+  // ═══ KERANGKA CETAK v5: LEBAR A4 + KOP RESMI ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
-    'body{font-family:Arial,sans-serif;color:#111;padding:30px;font-size:14px}' +
+    'body{font-family:Arial,sans-serif;color:#111;font-size:13px;max-width:210mm;margin:0 auto;padding:12mm 15mm;background:#fff}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
     '.head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
-    '.head img{width:80px;height:80px;object-fit:cover}' +
+    '.head img{width:78px;height:78px;object-fit:cover}' +
     '.head-text{flex:1;text-align:center}' +
-    '.head h1{margin:0;font-size:20px;letter-spacing:1px;color:#333}' +
-    '.head .sub{margin:3px 0;font-size:12px;color:#555;letter-spacing:2px}' +
-    '.head .addr{margin:0;font-size:10.5px;color:#666}' +
-    '.head-line{border-bottom:1px solid #444;margin-bottom:20px}' +
-    'h2{font-size:15px;text-decoration:underline;margin:0 0 14px;text-align:center;letter-spacing:1px}' +
+    '.head h1{margin:0;font-size:19px;letter-spacing:1px;color:#333}' +
+    '.head .sub{margin:3px 0;font-size:11.5px;color:#555;letter-spacing:2px}' +
+    '.head .addr{margin:0;font-size:10px;color:#666}' +
+    '.head-line{border-bottom:1px solid #444;margin-bottom:18px}' +
+    'h2{font-size:14px;text-decoration:underline;margin:0 0 16px;text-align:center;letter-spacing:1px}' +
     'table{border-collapse:collapse;width:100%}' +
-    'table.doc td{padding:4px 8px;vertical-align:top}' +
-    'table.grid th,table.grid td{border:1px solid #333;padding:6px 8px;font-size:12px;text-align:left}' +
+    'table.doc td{padding:3px 8px;vertical-align:top}' +
+    'table.grid th,table.grid td{border:1px solid #333;padding:6px 8px;font-size:11.5px;text-align:left}' +
     'table.grid th{background:#e8f5e9}' +
+    'p{margin:10px 0;line-height:1.55}' +
     '.foto-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}' +
     '.foto-grid figure{margin:0;width:30%;text-align:center;page-break-inside:avoid}' +
-    '.foto-grid img{width:100%;height:170px;object-fit:cover;border:1px solid #bbb;border-radius:6px}' +
-    '.foto-grid figcaption{font-size:11px;color:#666;margin-top:4px}' +
+    '.foto-grid img{width:100%;height:160px;object-fit:cover;border:1px solid #bbb;border-radius:6px}' +
+    '.foto-grid figcaption{font-size:10.5px;color:#666;margin-top:4px}' +
     '.page-break{page-break-before:always}' +
-    '.sign{display:flex;justify-content:space-between;margin-top:40px}' +
+    '.sign{display:flex;justify-content:space-between;margin-top:36px}' +
     '.sign>div{width:40%;text-align:center;position:relative}' +
-    '.sign .space{height:80px}' +
-    '.sign .stempel{position:absolute;left:50%;top:20px;transform:translateX(-50%);height:80px;opacity:.9}' +
-    '.foot{margin-top:30px;padding-top:10px;border-top:1px solid #ccc;font-size:11px;color:#777;text-align:center}' +
-    '.no-print{margin-top:25px;text-align:center}' +
+    '.sign .space{height:75px}' +
+    '.sign .stempel{position:absolute;left:50%;top:18px;transform:translateX(-50%);height:75px;opacity:.9}' +
+    '.foot{margin-top:28px;padding-top:8px;border-top:1px solid #ccc;font-size:10px;color:#777;text-align:center}' +
+    '.no-print{margin-top:22px;text-align:center}' +
     'button{padding:8px 18px;background:#2e7d32;color:#fff;border:0;border-radius:6px;cursor:pointer}' +
-    '@media print{.no-print{display:none}}' +
+    '@media print{.no-print{display:none}body{padding:0;max-width:none}}' +
     '</style></head><body>' +
     '<img class="kop-img" src="' + BASE_URL + '/kop.png" onerror="this.style.display=\'none\'">' +
     '<div class="head" id="headText">' +
       '<img src="' + BASE_URL + '/logo.png" onerror="this.style.display=\'none\'">' +
       '<div class="head-text">' +
         '<h1>CV REZEKI AMANAH JAYA GROUP</h1>' +
-        '<p class="sub">SUPPLIER &amp; WASTE SOLUTION PARTNER</p>' +
-        '<p class="addr">' + ALAMAT_KOP + '</p>' +
+        '<p class="sub" style="margin:3px 0">SUPPLIER &amp; WASTE SOLUTION PARTNER</p>' +
+        '<p class="addr" style="margin:0"> ' + ALAMAT_KOP + '</p>' +
       '</div>' +
     '</div>' +
     '<div class="head-line"></div>' +
@@ -168,7 +166,7 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v4 — FORMAT RESMI ═══
+  // ═══ 3) SURAT JALAN v5 ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
@@ -180,9 +178,9 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
         let fotoHtml = "";
         if (fotos.length) {
           fotoHtml = '<div class="page-break"></div>' +
-            '<h3 style="margin:0 0 8px;font-size:14px;text-decoration:underline;text-align:center">Lampiran Foto</h3>' +
+            '<h3 style="margin:0 0 8px;font-size:13px;text-decoration:underline;text-align:center">Lampiran Foto</h3>' +
             '<div class="foto-grid">' +
-            fotos.map((url, i) => '<figure><img src="' + url + '"><figcaption>Foto ' + (i + 1) + ' &mdash; ' + (d.tanggal || "") + '</figcaption></figure>').join("") +
+            fotos.map((url, i) => '<figure><img src="' + url + '"><figcaption>Foto ' + (i + 1) + ' &mdash; ' + longDate(d.tanggal) + '</figcaption></figure>').join("") +
             '</div>';
         }
 
@@ -194,11 +192,11 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
           '</table></td>' +
           '<td style="vertical-align:top;text-align:right">Tangerang, ' + longDate(d.tanggal) + '</td>' +
           '</tr></table>' +
-          '<p style="margin:20px 0 0">' + KEPADA_HTML + '</p>' +
-          '<p style="margin:16px 0 0;text-indent:40px">Dengan hormat,</p>' +
+          '<p style="margin:18px 0 0">' + KEPADA_HTML + '</p>' +
+          '<p style="text-indent:40px">Dengan hormat,</p>' +
           '<p style="text-indent:40px">Sehubungan dengan kegiatan pengangkutan sampah yang dilaksanakan oleh <b>CV Rezeki Amanah Jaya Group</b>, bersama ini kami sampaikan rincian pengambilan sebagai berikut:</p>' +
-          '<table class="doc" style="margin-top:10px">' +
-          "<tr><td style=\"width:150px\">Tanggal</td><td>: " + (d.tanggal || "-") + "</td></tr>" +
+          '<table class="doc" style="margin-top:8px">' +
+          "<tr><td style=\"width:150px\">Tanggal</td><td>: " + longDate(d.tanggal) + "</td></tr>" +
           "<tr><td>Jenis Sampah</td><td>: " + (d.jenis || "-") + "</td></tr>" +
           "<tr><td>Berat</td><td>: " + (d.berat || 0) + " kg</td></tr>" +
           "<tr><td>Diolah</td><td>: " + (d.diolah || 0) + " kg</td></tr>" +
@@ -208,7 +206,7 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
           "<tr><td>Tujuan</td><td>: Fasilitas Pengolahan CV Rezeki Amanah Jaya Group</td></tr>" +
           "<tr><td>Catatan</td><td>: " + (d.catatan || "-") + "</td></tr>" +
           "</table>" +
-          "<p style=\"margin-top:14px\">Barang/sampah tersebut di atas telah diambil dan diangkut dengan sesungguhnya.</p>" +
+          "<p>Barang/sampah tersebut di atas telah diambil dan diangkut dengan sesungguhnya.</p>" +
           '<div class="sign"><div><p>Hormat kami,</p><div class="space"><img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'"></div>' +
           '<p><b>( ' + (d.petugas || "........................") + ' )</b><br>Pengirim</p></div>' +
           '<div><p>Diterima oleh,</p><div class="space"></div><p><b>( ........................ )</b><br>Penerima</p></div></div>' +
@@ -220,7 +218,8 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
         w.focus();
       };
 
-      if (d.noSurat) {
+      // Nomor lama format SJ/... otomatis diganti format baru
+      if (d.noSurat && d.noSurat.indexOf("SJ/") !== 0) {
         doPrint(d.noSurat);
       } else {
         nextSJNumber(d.tanggal).then(nomor => {
@@ -231,7 +230,7 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
     });
   };
 
-  // ─── Tempel tombol Surat Jalan ke tabel Data ───
+  // ─── Tempel tombol Surat Jalan ───
   function attachSuratJalanButtons() {
     const tbody = document.getElementById("dashDataTable");
     if (!tbody || !tbody.rows.length || typeof db === "undefined") return;
@@ -261,7 +260,7 @@ console.log("%cADDON v4 — format surat resmi aktif", "color:#6a1b9a;font-weigh
     };
   }
 
-  // ─── Suntik tombol Export/Cetak ke section Laporan ───
+  // ─── Suntik tombol Export/Cetak ───
   function injectReportButtons() {
     if (document.getElementById("addonReportBtns")) return true;
     const host = document.querySelector("#dashReport .report-filter");
