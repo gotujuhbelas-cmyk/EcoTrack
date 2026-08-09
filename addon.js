@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v5: layout A4 profesional
-console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v6: logo besar & presisi
+console.log("%cADDON v6 — logo besar presisi", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -59,15 +59,15 @@ console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-we
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v5: LEBAR A4 + KOP RESMI ═══
+  // ═══ KERANGKA CETAK v6: LOGO BESAR PRESISI + LEBAR A4 ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
     'body{font-family:Arial,sans-serif;color:#111;font-size:13px;max-width:210mm;margin:0 auto;padding:12mm 15mm;background:#fff}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
-    '.head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
-    '.head img{width:78px;height:78px;object-fit:cover}' +
+    '.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #444;padding-bottom:10px}' +
+    '.head img{width:auto;height:95px;object-fit:contain;flex-shrink:0}' +
     '.head-text{flex:1;text-align:center}' +
     '.head h1{margin:0;font-size:19px;letter-spacing:1px;color:#333}' +
     '.head .sub{margin:3px 0;font-size:11.5px;color:#555;letter-spacing:2px}' +
@@ -99,7 +99,7 @@ console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-we
       '<div class="head-text">' +
         '<h1>CV REZEKI AMANAH JAYA GROUP</h1>' +
         '<p class="sub" style="margin:3px 0">SUPPLIER &amp; WASTE SOLUTION PARTNER</p>' +
-        '<p class="addr" style="margin:0"> ' + ALAMAT_KOP + '</p>' +
+        '<p class="addr" style="margin:0">' + ALAMAT_KOP + '</p>' +
       '</div>' +
     '</div>' +
     '<div class="head-line"></div>' +
@@ -166,7 +166,7 @@ console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-we
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v5 ═══
+  // ═══ 3) SURAT JALAN v6 ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
@@ -218,7 +218,6 @@ console.log("%cADDON v5 — layout A4 & kepada The Hood", "color:#6a1b9a;font-we
         w.focus();
       };
 
-      // Nomor lama format SJ/... otomatis diganti format baru
       if (d.noSurat && d.noSurat.indexOf("SJ/") !== 0) {
         doPrint(d.noSurat);
       } else {
