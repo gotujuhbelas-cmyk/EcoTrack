@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v2: Export Laporan + Surat Jalan
-// Nomor SJ: SJ/001/VIII/RAJ | kop.png & stempel.png opsional
-console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v3: kop center + foto di surat jalan
+console.log("%cADDON v3 — kop center & foto lampiran aktif", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -52,40 +51,49 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
     return "SJ/" + seq + "/" + romanMonth(tanggal) + "/RAJ";
   }
 
-  // ─── Helper: kerangka dokumen cetak (kop + stempel opsional) ───
+  // ═══ KERANGKA CETAK v3: KOP CENTER + FOOTER PROFESIONAL ═══
   function printShell(docTitle, bodyHtml) {
+    const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
     'body{font-family:Arial,sans-serif;color:#111;padding:30px;font-size:14px}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
-    '.head{display:flex;gap:15px;align-items:center;border-bottom:3px solid #2e7d32;padding-bottom:12px;margin-bottom:18px}' +
-    '.head img{width:60px;height:60px;object-fit:cover}' +
-    '.head h1{margin:0;font-size:18px;color:#1b5e20}' +
+    '.head{text-align:center;border-bottom:4px double #1b5e20;padding-bottom:12px;margin-bottom:20px}' +
+    '.head img{width:72px;height:72px;object-fit:cover;display:block;margin:0 auto 6px}' +
+    '.head h1{margin:0;font-size:20px;color:#1b5e20;letter-spacing:1px;text-transform:uppercase}' +
     '.head p{margin:2px 0 0;font-size:12px;color:#555}' +
-    'h2{font-size:16px;text-decoration:underline;margin:0 0 14px;text-align:center}' +
+    'h2{font-size:16px;text-decoration:underline;margin:0 0 14px;text-align:center;letter-spacing:1px}' +
     'table{border-collapse:collapse;width:100%}' +
     'table.doc td{padding:5px 8px;vertical-align:top}' +
     'table.grid th,table.grid td{border:1px solid #333;padding:6px 8px;font-size:12px;text-align:left}' +
     'table.grid th{background:#e8f5e9}' +
+    '.foto-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}' +
+    '.foto-grid figure{margin:0;width:30%;text-align:center;page-break-inside:avoid}' +
+    '.foto-grid img{width:100%;height:170px;object-fit:cover;border:1px solid #bbb;border-radius:6px}' +
+    '.foto-grid figcaption{font-size:11px;color:#666;margin-top:4px}' +
+    '.page-break{page-break-before:always}' +
     '.sign{display:flex;justify-content:space-between;margin-top:40px}' +
     '.sign>div{width:40%;text-align:center;position:relative}' +
     '.sign .space{height:80px}' +
     '.sign .stempel{position:absolute;left:50%;top:20px;transform:translateX(-50%);height:80px;opacity:.9}' +
-    '.no-print{margin-top:25px}' +
+    '.foot{margin-top:30px;padding-top:10px;border-top:1px solid #ccc;font-size:11px;color:#777;text-align:center}' +
+    '.no-print{margin-top:25px;text-align:center}' +
     'button{padding:8px 18px;background:#2e7d32;color:#fff;border:0;border-radius:6px;cursor:pointer}' +
     '@media print{.no-print{display:none}}' +
     '</style></head><body>' +
     '<img class="kop-img" src="' + BASE_URL + '/kop.png" onerror="this.style.display=\'none\'">' +
     '<div class="head" id="headText">' +
       '<img src="' + BASE_URL + '/logo.png" onerror="this.style.display=\'none\'">' +
-      '<div><h1>CV REZEKI AMANAH JAYA GROUP</h1>' +
-      '<p>Supplier &amp; Waste Solution Partner — The Hood, Summarecon Serpong</p></div>' +
+      '<h1>CV Rezeki Amanah Jaya Group</h1>' +
+      '<p>Supplier &amp; Waste Solution Partner</p>' +
+      '<p>The Hood &mdash; Summarecon Serpong</p>' +
     '</div>' +
     '<h2>' + docTitle + '</h2>' +
     bodyHtml +
-    '<div class="no-print"><button onclick="window.print()">🖨️ Cetak</button></div>' +
+    '<div class="foot">Dokumen dibuat otomatis oleh EcoTRACK &bull; Dicetak: ' + new Date().toLocaleString("id-ID") + ' &bull; Oleh: ' + printedBy + '</div>' +
+    '<div class="no-print"><button onclick="window.print()">🖨️ Cetak / Simpan PDF</button></div>' +
     '<scr' + 'ipt>document.addEventListener("DOMContentLoaded",function(){' +
-    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="flex";};' +
+    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="block";};' +
     'k.onload=function(){var h=document.getElementById("headText");if(h)h.style.display="none";};' +
     'k.src="' + BASE_URL + '/kop.png";});</scr' + 'ipt>' +
     '</body></html>';
@@ -127,10 +135,10 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
     });
 
     const body =
-      "<p>Periode: <b>" + (document.getElementById("reportPeriod") ? document.getElementById("reportPeriod").value : "-") +
-      "</b> — dicetak " + new Date().toLocaleString("id-ID") + "</p>" +
+      "<p style=\"text-align:center\">Periode: <b>" + (document.getElementById("reportPeriod") ? document.getElementById("reportPeriod").value : "-") +
+      "</b></p>" +
       '<table class="grid">' + rowsHtml + "</table>" +
-      "<p style=\"margin-top:14px\">Total Pengambilan: <b>" + g("rptTotalPickup") + "</b> &nbsp;|&nbsp; " +
+      "<p style=\"margin-top:14px;text-align:center\">Total Pengambilan: <b>" + g("rptTotalPickup") + "</b> &nbsp;|&nbsp; " +
       "Total Berat: <b>" + g("rptTotalWeight") + "</b> &nbsp;|&nbsp; " +
       "Diolah: <b>" + g("rptTotalProcessed") + "</b> &nbsp;|&nbsp; " +
       "Residu: <b>" + g("rptTotalResidue") + "</b></p>" +
@@ -139,12 +147,12 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
       '<p><b>( ........................ )</b><br>Manajer Operasional</p></div></div>';
 
     const w = window.open("", "_blank");
-    w.document.write(printShell("Laporan Pengambilan & Pengolahan Sampah", body));
+    w.document.write(printShell("LAPORAN PENGAMBILAN & PENGOLAHAN SAMPAH", body));
     w.document.close();
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN — nomor SJ/001/VIII/RAJ ═══
+  // ═══ 3) SURAT JALAN v3 — DENGAN LAMPIRAN FOTO ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
@@ -152,6 +160,17 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
       const d = doc.data();
 
       const doPrint = (nomor) => {
+        // Lampiran foto (kalau ada)
+        const fotos = d.fotos || d.foto || [];
+        let fotoHtml = "";
+        if (fotos.length) {
+          fotoHtml = '<div class="page-break"></div>' +
+            '<h3 style="margin:0 0 8px;font-size:14px;text-decoration:underline;text-align:center">Lampiran Foto</h3>' +
+            '<div class="foto-grid">' +
+            fotos.map((url, i) => '<figure><img src="' + url + '"><figcaption>Foto ' + (i + 1) + ' &mdash; ' + (d.tanggal || "") + '</figcaption></figure>').join("") +
+            '</div>';
+        }
+
         const body =
           '<table class="doc">' +
           "<tr><td style=\"width:150px\">Nomor</td><td>: <b>" + nomor + "</b></td></tr>" +
@@ -168,7 +187,8 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
           "<p style=\"margin-top:14px\">Barang/sampah tersebut di atas telah diambil dan diangkut dengan sesungguhnya.</p>" +
           '<div class="sign"><div><p>Hormat kami,</p><div class="space"><img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'"></div>' +
           '<p><b>( ' + (d.petugas || "........................") + ' )</b><br>Pengirim</p></div>' +
-          '<div><p>Diterima oleh,</p><div class="space"></div><p><b>( ........................ )</b><br>Penerima</p></div></div>';
+          '<div><p>Diterima oleh,</p><div class="space"></div><p><b>( ........................ )</b><br>Penerima</p></div></div>' +
+          fotoHtml;
 
         const w = window.open("", "_blank");
         w.document.write(printShell("SURAT JALAN", body));
@@ -176,7 +196,6 @@ console.log("%cADDON v2 — surat jalan format RAJ aktif", "color:#6a1b9a;font-w
         w.focus();
       };
 
-      // Pakai nomor tersimpan kalau ada, biar cetak ulang nomornya sama
       if (d.noSurat) {
         doPrint(d.noSurat);
       } else {
