@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v6: logo besar & presisi
-console.log("%cADDON v6 — logo besar presisi", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v7: kop center rapat + Sukamantri
+console.log("%cADDON v7 — kop center rapat", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -8,7 +8,7 @@ console.log("%cADDON v6 — logo besar presisi", "color:#6a1b9a;font-weight:bold
   const BASE_URL = "https://hood.rezekiamanahjaya.com";
 
   // ✏️ EDIT BEBAS: alamat kop & penerima
-  const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamulya, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
+  const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamantri, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
   const KEPADA_HTML = "Kepada Yth.<br><b>Pengelola The Hood &mdash; Summarecon</b><br><b>BSD City</b><br>di<br><b>Tempat</b>";
 
   function downloadCSV(filename, rows) {
@@ -59,16 +59,16 @@ console.log("%cADDON v6 — logo besar presisi", "color:#6a1b9a;font-weight:bold
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v6: LOGO BESAR PRESISI + LEBAR A4 ═══
+  // ═══ KERANGKA CETAK v7: KOP CENTER RAPAT ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
     'body{font-family:Arial,sans-serif;color:#111;font-size:13px;max-width:210mm;margin:0 auto;padding:12mm 15mm;background:#fff}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
-    '.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #444;padding-bottom:10px}' +
+    '.head{display:flex;align-items:center;justify-content:center;gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
     '.head img{width:auto;height:95px;object-fit:contain;flex-shrink:0}' +
-    '.head-text{flex:1;text-align:center}' +
+    '.head-text{text-align:center}' +
     '.head h1{margin:0;font-size:19px;letter-spacing:1px;color:#333}' +
     '.head .sub{margin:3px 0;font-size:11.5px;color:#555;letter-spacing:2px}' +
     '.head .addr{margin:0;font-size:10px;color:#666}' +
@@ -166,7 +166,7 @@ console.log("%cADDON v6 — logo besar presisi", "color:#6a1b9a;font-weight:bold
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v6 ═══
+  // ═══ 3) SURAT JALAN v7 ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
