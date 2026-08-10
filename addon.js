@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v7: kop center rapat + Sukamantri
-console.log("%cADDON v7 — kop center rapat", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v8: kop geser kiri, teks center halaman
+console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -59,16 +59,17 @@ console.log("%cADDON v7 — kop center rapat", "color:#6a1b9a;font-weight:bold")
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v7: KOP CENTER RAPAT ═══
+  // ═══ KERANGKA CETAK v8: LOGO KIRI + TEKS CENTER HALAMAN ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
     '<style>' +
     'body{font-family:Arial,sans-serif;color:#111;font-size:13px;max-width:210mm;margin:0 auto;padding:12mm 15mm;background:#fff}' +
     '.kop-img{width:100%;margin-bottom:12px}' +
-    '.head{display:flex;align-items:center;justify-content:center;gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
-    '.head img{width:auto;height:95px;object-fit:contain;flex-shrink:0}' +
-    '.head-text{text-align:center}' +
+    '.head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:14px;border-bottom:3px solid #444;padding-bottom:10px}' +
+    '.head img{grid-column:1;justify-self:end;width:auto;height:95px;object-fit:contain}' +
+    '.head-text{grid-column:2;text-align:center}' +
+    '.head::after{content:"";grid-column:3}' +
     '.head h1{margin:0;font-size:19px;letter-spacing:1px;color:#333}' +
     '.head .sub{margin:3px 0;font-size:11.5px;color:#555;letter-spacing:2px}' +
     '.head .addr{margin:0;font-size:10px;color:#666}' +
@@ -108,7 +109,7 @@ console.log("%cADDON v7 — kop center rapat", "color:#6a1b9a;font-weight:bold")
     '<div class="foot">Dokumen dibuat otomatis oleh EcoTRACK &bull; Dicetak: ' + new Date().toLocaleString("id-ID") + ' &bull; Oleh: ' + printedBy + '</div>' +
     '<div class="no-print"><button onclick="window.print()">🖨️ Cetak / Simpan PDF</button></div>' +
     '<scr' + 'ipt>document.addEventListener("DOMContentLoaded",function(){' +
-    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="flex";};' +
+    'var k=new Image();k.onerror=function(){var h=document.getElementById("headText");if(h)h.style.display="grid";};' +
     'k.onload=function(){var h=document.getElementById("headText");if(h)h.style.display="none";};' +
     'k.src="' + BASE_URL + '/kop.png";});</scr' + 'ipt>' +
     '</body></html>';
@@ -166,7 +167,7 @@ console.log("%cADDON v7 — kop center rapat", "color:#6a1b9a;font-weight:bold")
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v7 ═══
+  // ═══ 3) SURAT JALAN v8 ═══
   window.printSuratJalan = function(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
