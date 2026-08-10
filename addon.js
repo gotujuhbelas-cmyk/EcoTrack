@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v9: popup ttd & stempel
-console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v10: signature pad + stempel natural
+console.log("%cADDON v10 — signature pad & stempel natural", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -10,7 +10,6 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
   const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamantri, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
   const KEPADA_HTML = "Kepada Yth.<br><b>Pengelola The Hood &mdash; Summarecon</b><br><b>BSD City</b><br>di<br><b>Tempat</b>";
 
-  // ─── State ttd/stempel (tersimpan di browser) ───
   const SIGN = {
     ttdP: localStorage.getItem("raj_ttdP") || null,
     stP:  localStorage.getItem("raj_stP")  || null,
@@ -18,6 +17,7 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
     stR:  localStorage.getItem("raj_stR")  || null
   };
   let pendingDocId = null;
+  const pads = {};
 
   function downloadCSV(filename, rows) {
     const esc = v => {
@@ -67,7 +67,7 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v8/v9 ═══
+  // ═══ KERANGKA CETAK v10: STEMPEL NATURAL ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
@@ -95,9 +95,9 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
     '.page-break{page-break-before:always}' +
     '.sign{display:flex;justify-content:space-between;margin-top:36px}' +
     '.sign>div{width:40%;text-align:center;position:relative}' +
-    '.sign .space{height:85px;position:relative}' +
-    '.sign .stempel{position:absolute;left:50%;top:8px;transform:translateX(-50%);height:75px;opacity:.9}' +
-    '.sign .ttd{position:relative;height:55px;margin:0 auto;top:14px}' +
+    '.sign .space{height:115px;position:relative}' +
+    '.sign .stempel{position:absolute;left:50%;top:2px;transform:translateX(-50%) rotate(-6deg);height:110px;opacity:.9;mix-blend-mode:multiply}' +
+    '.sign .ttd{position:relative;height:60px;margin:0 auto;top:22px}' +
     '.foot{margin-top:28px;padding-top:8px;border-top:1px solid #ccc;font-size:10px;color:#777;text-align:center}' +
     '.no-print{margin-top:22px;text-align:center}' +
     'button{padding:8px 18px;background:#2e7d32;color:#fff;border:0;border-radius:6px;cursor:pointer}' +
@@ -124,29 +124,67 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
     '</body></html>';
   }
 
-  // ═══ POPUP TTD & STEMPEL ═══
+  // ═══ SIGNATURE PAD (papan coret ttd) ═══
+  function initPad(side) {
+    const c = pads[side].canvas;
+    const ctx = c.getContext("2d");
+    pads[side].ctx = ctx;
+    ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1a237e";
+    let drawing = false;
+    function pos(e) {
+      const r = c.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return [(t.clientX - r.left) * (c.width / r.width), (t.clientY - r.top) * (c.height / r.height)];
+    }
+    function start(e) { e.preventDefault(); drawing = true; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); pads[side].dirty = true; }
+    function move(e) { if (!drawing) return; e.preventDefault(); const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); }
+    function end() { drawing = false; }
+    c.addEventListener("mousedown", start);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+    c.addEventListener("touchstart", start, { passive: false });
+    c.addEventListener("touchmove", move, { passive: false });
+    c.addEventListener("touchend", end);
+  }
+
+  function loadPad(side) {
+    const key = "ttd" + side;
+    const p = pads[side];
+    p.ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
+    p.dirty = false;
+    if (SIGN[key]) {
+      const img = new Image();
+      img.onload = () => { p.ctx.drawImage(img, 0, 0, p.canvas.width, p.canvas.height); };
+      img.src = SIGN[key];
+    }
+  }
+
   function buildSignModal() {
     const m = document.createElement("div");
     m.id = "signModal";
     m.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;align-items:center;justify-content:center";
     m.innerHTML =
-      '<div style="background:#fff;border-radius:12px;padding:20px;width:600px;max-width:92vw;max-height:90vh;overflow:auto;font-family:Arial,sans-serif">' +
+      '<div style="background:#fff;border-radius:12px;padding:20px;width:640px;max-width:94vw;max-height:90vh;overflow:auto;font-family:Arial,sans-serif">' +
       '<h3 style="margin:0 0 4px;color:#2e7d32">🖋️ Tanda Tangan & Stempel</h3>' +
-      '<p style="font-size:12px;color:#666;margin:0 0 14px">Opsional — jika dikosongkan, surat tetap bisa dicetak. Upload sekali, tersimpan otomatis di browser ini.</p>' +
+      '<p style="font-size:12px;color:#666;margin:0 0 14px">Coret tanda tangan di kotak (mouse/jari). Opsional — kosong pun surat tetap tercetak. Tersimpan otomatis di browser ini.</p>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
         '<div style="border:1px solid #ddd;border-radius:10px;padding:12px">' +
           '<h4 style="margin:0 0 8px">Pengirim (RAJ)</h4>' +
-          '<label style="font-size:12px">Tanda tangan<br><input type="file" accept="image/*" id="upTtdP" style="margin:4px 0 8px"></label>' +
-          '<img id="pvTtdP" style="height:45px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px"><br>' +
-          '<label style="font-size:12px">Stempel<br><input type="file" accept="image/*" id="upStP" style="margin:4px 0 8px"></label>' +
-          '<img id="pvStP" style="height:55px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px">' +
+          '<p style="font-size:12px;margin:0 0 4px">Tanda tangan:</p>' +
+          '<canvas id="padP" width="260" height="90" style="width:100%;border:1px solid #bbb;border-radius:8px;background:#fff;touch-action:none"></canvas>' +
+          '<button id="clrP" style="background:#888;padding:4px 10px;font-size:11px;margin-top:6px">🧹 Hapus ttd</button>' +
+          '<p style="font-size:12px;margin:10px 0 4px">Stempel (upload):</p>' +
+          '<input type="file" accept="image/*" id="upStP" style="font-size:11px"><br>' +
+          '<img id="pvStP" style="height:60px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px;margin-top:4px">' +
         '</div>' +
         '<div style="border:1px solid #ddd;border-radius:10px;padding:12px">' +
           '<h4 style="margin:0 0 8px">Penerima</h4>' +
-          '<label style="font-size:12px">Tanda tangan<br><input type="file" accept="image/*" id="upTtdR" style="margin:4px 0 8px"></label>' +
-          '<img id="pvTtdR" style="height:45px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px"><br>' +
-          '<label style="font-size:12px">Stempel<br><input type="file" accept="image/*" id="upStR" style="margin:4px 0 8px"></label>' +
-          '<img id="pvStR" style="height:55px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px">' +
+          '<p style="font-size:12px;margin:0 0 4px">Tanda tangan:</p>' +
+          '<canvas id="padR" width="260" height="90" style="width:100%;border:1px solid #bbb;border-radius:8px;background:#fff;touch-action:none"></canvas>' +
+          '<button id="clrR" style="background:#888;padding:4px 10px;font-size:11px;margin-top:6px">🧹 Hapus ttd</button>' +
+          '<p style="font-size:12px;margin:10px 0 4px">Stempel (upload):</p>' +
+          '<input type="file" accept="image/*" id="upStR" style="font-size:11px"><br>' +
+          '<img id="pvStR" style="height:60px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px;margin-top:4px">' +
         '</div>' +
       '</div>' +
       '<div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">' +
@@ -156,27 +194,45 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
       '</div>';
     document.body.appendChild(m);
 
-    const wire = (inputId, key, pvId) => {
+    ["P", "R"].forEach(side => {
+      pads[side] = { canvas: document.getElementById("pad" + side), dirty: false };
+      initPad(side);
+      document.getElementById("clr" + side).onclick = () => {
+        const key = "ttd" + side;
+        pads[side].ctx.clearRect(0, 0, pads[side].canvas.width, pads[side].canvas.height);
+        pads[side].dirty = false;
+        SIGN[key] = null;
+        try { localStorage.removeItem("raj_" + key); } catch (e) {}
+      };
+    });
+
+    const wireSt = (inputId, key, pvId) => {
       document.getElementById(inputId).addEventListener("change", e => {
         const f = e.target.files[0];
         if (!f) return;
         const r = new FileReader();
         r.onload = () => {
           SIGN[key] = r.result;
-          try { localStorage.setItem("raj_" + key, r.result); } catch (err) { console.warn("ttd terlalu besar utk disimpan:", err); }
+          try { localStorage.setItem("raj_" + key, r.result); } catch (err) { console.warn("stempel terlalu besar utk disimpan:", err); }
           const pv = document.getElementById(pvId);
           pv.src = r.result; pv.style.display = "inline-block";
         };
         r.readAsDataURL(f);
       });
     };
-    wire("upTtdP", "ttdP", "pvTtdP");
-    wire("upStP", "stP", "pvStP");
-    wire("upTtdR", "ttdR", "pvTtdR");
-    wire("upStR", "stR", "pvStR");
+    wireSt("upStP", "stP", "pvStP");
+    wireSt("upStR", "stR", "pvStR");
 
     document.getElementById("btnSignCancel").onclick = () => { m.style.display = "none"; };
     document.getElementById("btnSignPrint").onclick = () => {
+      ["P", "R"].forEach(side => {
+        const key = "ttd" + side;
+        if (pads[side].dirty) {
+          const url = pads[side].canvas.toDataURL("image/png");
+          SIGN[key] = url;
+          try { localStorage.setItem("raj_" + key, url); } catch (e) {}
+        }
+      });
       m.style.display = "none";
       doPrintSurat(pendingDocId);
     };
@@ -184,8 +240,8 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
 
   function openSignModal() {
     if (!document.getElementById("signModal")) buildSignModal();
-    // tampilkan preview yang tersimpan
-    [["ttdP","pvTtdP"],["stP","pvStP"],["ttdR","pvTtdR"],["stR","pvStR"]].forEach(([k, id]) => {
+    ["P", "R"].forEach(side => loadPad(side));
+    [["stP","pvStP"],["stR","pvStR"]].forEach(([k, id]) => {
       const pv = document.getElementById(id);
       if (SIGN[k]) { pv.src = SIGN[k]; pv.style.display = "inline-block"; }
     });
@@ -243,7 +299,7 @@ console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weig
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v9 ═══
+  // ═══ 3) SURAT JALAN v10 ═══
   window.printSuratJalan = function(docId) {
     pendingDocId = docId;
     openSignModal();
