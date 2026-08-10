@@ -1,15 +1,23 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v8: kop geser kiri, teks center halaman
-console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v9: popup ttd & stempel
+console.log("%cADDON v9 — popup ttd & stempel aktif", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
 
   const BASE_URL = "https://hood.rezekiamanahjaya.com";
 
-  // ✏️ EDIT BEBAS: alamat kop & penerima
   const ALAMAT_KOP = "Cluster Puri Flamingo FLA 06/19, Sukamantri, Pasar Kemis, Kab. Tangerang &mdash; HP. 081296580968";
   const KEPADA_HTML = "Kepada Yth.<br><b>Pengelola The Hood &mdash; Summarecon</b><br><b>BSD City</b><br>di<br><b>Tempat</b>";
+
+  // ─── State ttd/stempel (tersimpan di browser) ───
+  const SIGN = {
+    ttdP: localStorage.getItem("raj_ttdP") || null,
+    stP:  localStorage.getItem("raj_stP")  || null,
+    ttdR: localStorage.getItem("raj_ttdR") || null,
+    stR:  localStorage.getItem("raj_stR")  || null
+  };
+  let pendingDocId = null;
 
   function downloadCSV(filename, rows) {
     const esc = v => {
@@ -59,7 +67,7 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ KERANGKA CETAK v8: LOGO KIRI + TEKS CENTER HALAMAN ═══
+  // ═══ KERANGKA CETAK v8/v9 ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
@@ -87,8 +95,9 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
     '.page-break{page-break-before:always}' +
     '.sign{display:flex;justify-content:space-between;margin-top:36px}' +
     '.sign>div{width:40%;text-align:center;position:relative}' +
-    '.sign .space{height:75px}' +
-    '.sign .stempel{position:absolute;left:50%;top:18px;transform:translateX(-50%);height:75px;opacity:.9}' +
+    '.sign .space{height:85px;position:relative}' +
+    '.sign .stempel{position:absolute;left:50%;top:8px;transform:translateX(-50%);height:75px;opacity:.9}' +
+    '.sign .ttd{position:relative;height:55px;margin:0 auto;top:14px}' +
     '.foot{margin-top:28px;padding-top:8px;border-top:1px solid #ccc;font-size:10px;color:#777;text-align:center}' +
     '.no-print{margin-top:22px;text-align:center}' +
     'button{padding:8px 18px;background:#2e7d32;color:#fff;border:0;border-radius:6px;cursor:pointer}' +
@@ -113,6 +122,74 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
     'k.onload=function(){var h=document.getElementById("headText");if(h)h.style.display="none";};' +
     'k.src="' + BASE_URL + '/kop.png";});</scr' + 'ipt>' +
     '</body></html>';
+  }
+
+  // ═══ POPUP TTD & STEMPEL ═══
+  function buildSignModal() {
+    const m = document.createElement("div");
+    m.id = "signModal";
+    m.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;align-items:center;justify-content:center";
+    m.innerHTML =
+      '<div style="background:#fff;border-radius:12px;padding:20px;width:600px;max-width:92vw;max-height:90vh;overflow:auto;font-family:Arial,sans-serif">' +
+      '<h3 style="margin:0 0 4px;color:#2e7d32">🖋️ Tanda Tangan & Stempel</h3>' +
+      '<p style="font-size:12px;color:#666;margin:0 0 14px">Opsional — jika dikosongkan, surat tetap bisa dicetak. Upload sekali, tersimpan otomatis di browser ini.</p>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+        '<div style="border:1px solid #ddd;border-radius:10px;padding:12px">' +
+          '<h4 style="margin:0 0 8px">Pengirim (RAJ)</h4>' +
+          '<label style="font-size:12px">Tanda tangan<br><input type="file" accept="image/*" id="upTtdP" style="margin:4px 0 8px"></label>' +
+          '<img id="pvTtdP" style="height:45px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px"><br>' +
+          '<label style="font-size:12px">Stempel<br><input type="file" accept="image/*" id="upStP" style="margin:4px 0 8px"></label>' +
+          '<img id="pvStP" style="height:55px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px">' +
+        '</div>' +
+        '<div style="border:1px solid #ddd;border-radius:10px;padding:12px">' +
+          '<h4 style="margin:0 0 8px">Penerima</h4>' +
+          '<label style="font-size:12px">Tanda tangan<br><input type="file" accept="image/*" id="upTtdR" style="margin:4px 0 8px"></label>' +
+          '<img id="pvTtdR" style="height:45px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px"><br>' +
+          '<label style="font-size:12px">Stempel<br><input type="file" accept="image/*" id="upStR" style="margin:4px 0 8px"></label>' +
+          '<img id="pvStR" style="height:55px;display:none;border:1px dashed #bbb;border-radius:6px;padding:2px">' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">' +
+        '<button id="btnSignCancel" style="background:#888">✖ Batal</button>' +
+        '<button id="btnSignPrint">🖨️ Cetak Surat Jalan</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(m);
+
+    const wire = (inputId, key, pvId) => {
+      document.getElementById(inputId).addEventListener("change", e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          SIGN[key] = r.result;
+          try { localStorage.setItem("raj_" + key, r.result); } catch (err) { console.warn("ttd terlalu besar utk disimpan:", err); }
+          const pv = document.getElementById(pvId);
+          pv.src = r.result; pv.style.display = "inline-block";
+        };
+        r.readAsDataURL(f);
+      });
+    };
+    wire("upTtdP", "ttdP", "pvTtdP");
+    wire("upStP", "stP", "pvStP");
+    wire("upTtdR", "ttdR", "pvTtdR");
+    wire("upStR", "stR", "pvStR");
+
+    document.getElementById("btnSignCancel").onclick = () => { m.style.display = "none"; };
+    document.getElementById("btnSignPrint").onclick = () => {
+      m.style.display = "none";
+      doPrintSurat(pendingDocId);
+    };
+  }
+
+  function openSignModal() {
+    if (!document.getElementById("signModal")) buildSignModal();
+    // tampilkan preview yang tersimpan
+    [["ttdP","pvTtdP"],["stP","pvStP"],["ttdR","pvTtdR"],["stR","pvStR"]].forEach(([k, id]) => {
+      const pv = document.getElementById(id);
+      if (SIGN[k]) { pv.src = SIGN[k]; pv.style.display = "inline-block"; }
+    });
+    document.getElementById("signModal").style.display = "flex";
   }
 
   // ═══ 1) EXPORT CSV ═══
@@ -157,9 +234,8 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
       "Total Berat: <b>" + g("rptTotalWeight") + "</b> &nbsp;|&nbsp; " +
       "Diolah: <b>" + g("rptTotalProcessed") + "</b> &nbsp;|&nbsp; " +
       "Residu: <b>" + g("rptTotalResidue") + "</b></p>" +
-      '<div class="sign"><div><p>Hormat kami,</p><div class="space"></div><p><b>( ........................ )</b><br>Pelapor</p></div>' +
-      '<div><p>Mengetahui,</p><div class="space"><img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'"></div>' +
-      '<p><b>( ........................ )</b><br>Manajer Operasional</p></div></div>';
+      '<div class="sign"><div><p>Hormat kami,</p><div class="space">' + (SIGN.stP ? '<img class="stempel" src="' + SIGN.stP + '">' : '<img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'">') + (SIGN.ttdP ? '<img class="ttd" src="' + SIGN.ttdP + '">' : '') + '</div><p><b>( ........................ )</b><br>Pelapor</p></div>' +
+      '<div><p>Mengetahui,</p><div class="space">' + (SIGN.stR ? '<img class="stempel" src="' + SIGN.stR + '">' : '') + (SIGN.ttdR ? '<img class="ttd" src="' + SIGN.ttdR + '">' : '') + '</div><p><b>( ........................ )</b><br>Manajer Operasional</p></div></div>';
 
     const w = window.open("", "_blank");
     w.document.write(printShell("LAPORAN PENGAMBILAN & PENGOLAHAN SAMPAH", body));
@@ -167,8 +243,13 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v8 ═══
+  // ═══ 3) SURAT JALAN v9 ═══
   window.printSuratJalan = function(docId) {
+    pendingDocId = docId;
+    openSignModal();
+  };
+
+  function doPrintSurat(docId) {
     if (typeof db === "undefined") return;
     db.collection("sampah").doc(docId).get().then(doc => {
       if (!doc.exists) { if (typeof toast === "function") toast("Data tidak ditemukan.", "error"); return; }
@@ -184,6 +265,13 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
             fotos.map((url, i) => '<figure><img src="' + url + '"><figcaption>Foto ' + (i + 1) + ' &mdash; ' + longDate(d.tanggal) + '</figcaption></figure>').join("") +
             '</div>';
         }
+
+        const stempelPengirim = SIGN.stP
+          ? '<img class="stempel" src="' + SIGN.stP + '">'
+          : '<img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'">';
+        const ttdPengirim = SIGN.ttdP ? '<img class="ttd" src="' + SIGN.ttdP + '">' : '';
+        const stempelPenerima = SIGN.stR ? '<img class="stempel" src="' + SIGN.stR + '">' : '';
+        const ttdPenerima = SIGN.ttdR ? '<img class="ttd" src="' + SIGN.ttdR + '">' : '';
 
         const body =
           '<table style="width:100%"><tr>' +
@@ -208,9 +296,10 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
           "<tr><td>Catatan</td><td>: " + (d.catatan || "-") + "</td></tr>" +
           "</table>" +
           "<p>Barang/sampah tersebut di atas telah diambil dan diangkut dengan sesungguhnya.</p>" +
-          '<div class="sign"><div><p>Hormat kami,</p><div class="space"><img class="stempel" src="' + BASE_URL + '/stempel.png" onerror="this.style.display=\'none\'"></div>' +
-          '<p><b>( ' + (d.petugas || "........................") + ' )</b><br>Pengirim</p></div>' +
-          '<div><p>Diterima oleh,</p><div class="space"></div><p><b>( ........................ )</b><br>Penerima</p></div></div>' +
+          '<div class="sign">' +
+            '<div><p>Hormat kami,</p><div class="space">' + stempelPengirim + ttdPengirim + '</div><p><b>( ' + (d.petugas || "........................") + ' )</b><br>Pengirim</p></div>' +
+            '<div><p>Diterima oleh,</p><div class="space">' + stempelPenerima + ttdPenerima + '</div><p><b>( ........................ )</b><br>Penerima</p></div>' +
+          '</div>' +
           fotoHtml;
 
         const w = window.open("", "_blank");
@@ -228,7 +317,7 @@ console.log("%cADDON v8 — kop kiri center", "color:#6a1b9a;font-weight:bold");
         });
       }
     });
-  };
+  }
 
   // ─── Tempel tombol Surat Jalan ───
   function attachSuratJalanButtons() {
