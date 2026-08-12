@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════
-// addon.js — EcoTRACK v11: ttd/stempel besar + pad popup mobile
-console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:bold");
+// addon.js — EcoTRACK v12: RATING PELAYANAN
+console.log("%cADDON v12 — rating pelayanan aktif", "color:#6a1b9a;font-weight:bold");
 // ══════════════════════════════════════════════════════════════
 
 (function() {
@@ -66,29 +66,7 @@ console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:
     return seq + "/RAJ/" + romanMonth(tanggal) + "/" + year;
   }
 
-  // ═══ Helper: gambar di canvas (mouse + touch) ═══
-  function attachDraw(c) {
-    const ctx = c.getContext("2d");
-    ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1a237e";
-    let drawing = false;
-    const pos = e => {
-      const r = c.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
-      return [(t.clientX - r.left) * (c.width / r.width), (t.clientY - r.top) * (c.height / r.height)];
-    };
-    const start = e => { e.preventDefault(); drawing = true; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); };
-    const move = e => { if (!drawing) return; e.preventDefault(); const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); };
-    const end = () => { drawing = false; };
-    c.addEventListener("mousedown", start);
-    c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", end);
-    c.addEventListener("touchstart", start, { passive: false });
-    c.addEventListener("touchmove", move, { passive: false });
-    c.addEventListener("touchend", end);
-    return ctx;
-  }
-
-  // ═══ KERANGKA CETAK v11: TTD & STEMPEL BESAR + GARIS ═══
+  // ═══ KERANGKA CETAK ═══
   function printShell(docTitle, bodyHtml) {
     const printedBy = (typeof currentUser !== "undefined" && currentUser && currentUser.email) ? currentUser.email : "-";
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title>' +
@@ -145,7 +123,28 @@ console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:
     '</body></html>';
   }
 
-  // ═══ POPUP PAPAN TTD (LAYAR PENUH, RAMAH HP) ═══
+  // ═══ PAPAN TTD POPUP ═══
+  function attachDraw(c) {
+    const ctx = c.getContext("2d");
+    ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1a237e";
+    let drawing = false;
+    const pos = e => {
+      const r = c.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return [(t.clientX - r.left) * (c.width / r.width), (t.clientY - r.top) * (c.height / r.height)];
+    };
+    const start = e => { e.preventDefault(); drawing = true; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); };
+    const move = e => { if (!drawing) return; e.preventDefault(); const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); };
+    const end = () => { drawing = false; };
+    c.addEventListener("mousedown", start);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+    c.addEventListener("touchstart", start, { passive: false });
+    c.addEventListener("touchmove", move, { passive: false });
+    c.addEventListener("touchend", end);
+    return ctx;
+  }
+
   function openPadPopup(side) {
     const key = "ttd" + side;
     const ov = document.createElement("div");
@@ -179,7 +178,6 @@ console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:
     };
   }
 
-  // ═══ MODAL TTD & STEMPEL ═══
   function buildSignModal() {
     const m = document.createElement("div");
     m.id = "signModal";
@@ -259,6 +257,230 @@ console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:
     document.getElementById("signModal").style.display = "flex";
   }
 
+  // ════════════════════════════════════════════════════════════
+  // ⭐ FITUR RATING PELAYANAN (BARU v12)
+  // ════════════════════════════════════════════════════════════
+  const RATING_AUTO_MS = 24 * 60 * 60 * 1000;
+
+  // 1) Setiap pengambilan baru → buat dokumen rating "pending"
+  function ensureRatingForSampah() {
+    if (typeof db === "undefined") return;
+    const cutoff = new Date(Date.now() - RATING_AUTO_MS);
+    db.collection("sampah").orderBy("createdAt", "desc").limit(10).get().then(snap => {
+      const jobs = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        const created = (d.createdAt && d.createdAt.toDate) ? d.createdAt.toDate() : null;
+        if (!created || created < cutoff) return;
+        jobs.push(
+          db.collection("ratings").where("sampahDocId", "==", doc.id).limit(1).get().then(rs => {
+            if (rs.empty) {
+              return db.collection("ratings").add({
+                sampahDocId: doc.id,
+                tanggal: d.tanggal || "",
+                petugas: d.petugas || "",
+                status: "pending",
+                rating: null,
+                review: "",
+                ratedBy: "",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          }).catch(() => {})
+        );
+      });
+      return Promise.all(jobs);
+    }).catch(e => console.warn("[rating ensure]", e));
+  }
+
+  // 2) Lebih dari 24 jam belum diisi → otomatis bintang 5
+  function autoExpireRatings() {
+    if (typeof db === "undefined") return;
+    db.collection("ratings").where("status", "==", "pending").get().then(snap => {
+      const now = Date.now();
+      const batch = db.batch();
+      let n = 0;
+      snap.forEach(doc => {
+        const d = doc.data();
+        const created = (d.createdAt && d.createdAt.toDate) ? d.createdAt.toDate() : null;
+        if (created && (now - created.getTime()) > RATING_AUTO_MS) {
+          batch.update(doc.ref, {
+            status: "auto",
+            rating: 5,
+            review: "(otomatis: tidak ada penilaian dalam 24 jam)",
+            filledAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          n++;
+        }
+      });
+      if (n > 0) return batch.commit();
+    }).catch(e => console.warn("[rating auto]", e));
+  }
+
+  // 3) Hitung & tampilkan rating keseluruhan
+  function starHTML(avg, count) {
+    if (!count) return '<p style="margin:0;color:#888">Belum ada rating</p>';
+    const full = Math.round(Number(avg));
+    let s = "";
+    for (let i = 1; i <= 5; i++) s += (i <= full ? "★" : "☆");
+    return '<div style="font-size:28px;color:#f9a825;letter-spacing:3px">' + s + '</div>' +
+           '<p style="margin:6px 0 0;font-size:14px"><b>' + avg + '</b> / 5 &nbsp;&bull;&nbsp; ' + count + ' penilaian</p>';
+  }
+
+  function loadRatingStats() {
+    if (typeof db === "undefined") return;
+    db.collection("ratings").where("status", "in", ["filled", "auto"]).get().then(snap => {
+      let sum = 0, count = 0;
+      snap.forEach(doc => { const d = doc.data(); sum += (d.rating || 0); count++; });
+      const avg = count ? (sum / count).toFixed(1) : null;
+      const pub = document.getElementById("pubRatingCard");
+      if (pub) pub.innerHTML = avg ? starHTML(avg, count) : '<p style="margin:0;color:#888">Belum ada rating</p>';
+      const adm = document.getElementById("admRatingCard");
+      if (adm) adm.innerHTML = avg ? starHTML(avg, count) : '<p style="margin:0;color:#888">Belum ada rating</p>';
+    }).catch(e => console.warn("[rating stats]", e));
+  }
+
+  // 4) Daftar review untuk admin
+  function loadReviewList() {
+    const tbody = document.getElementById("reviewTableBody");
+    if (!tbody || typeof db === "undefined") return;
+    db.collection("ratings").orderBy("createdAt", "desc").limit(50).get().then(snap => {
+      tbody.innerHTML = "";
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:12px;color:#888">Belum ada rating</td></tr>'; return; }
+      snap.forEach(doc => {
+        const d = doc.data();
+        const when = (d.createdAt && d.createdAt.toDate) ? d.createdAt.toDate().toLocaleString("id-ID") : "-";
+        const stars = d.rating ? "⭐".repeat(d.rating) : "-";
+        const status = d.status === "auto" ? "🤖 Otomatis 5★" : (d.status === "filled" ? "✅ Diisi" : "⏳ Menunggu");
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + when + "</td><td>" + (d.tanggal || "-") + "</td><td>" + (d.petugas || "-") + "</td><td>" + stars + "</td><td>" + (d.review || "-") + "</td><td>" + status + "</td>";
+        tbody.appendChild(tr);
+      });
+    }).catch(e => console.warn("[review list]", e));
+  }
+
+  // 5) Modal rating untuk role user
+  let currentRatingItem = null;
+  let pickedStars = 0;
+
+  function renderStars() {
+    const el = document.getElementById("rmStars");
+    if (!el) return;
+    let h = "";
+    for (let i = 1; i <= 5; i++) h += '<span data-star="' + i + '" style="color:' + (i <= pickedStars ? "#f9a825" : "#ccc") + ';padding:0 3px">' + (i <= pickedStars ? "★" : "☆") + "</span>";
+    el.innerHTML = h;
+  }
+
+  function showRatingModal(item) {
+    currentRatingItem = item;
+    pickedStars = 0;
+    let m = document.getElementById("ratingModal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "ratingModal";
+      m.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;align-items:center;justify-content:center";
+      m.innerHTML =
+        '<div style="background:#fff;border-radius:14px;padding:22px;width:430px;max-width:92vw;font-family:Arial,sans-serif;text-align:center">' +
+        '<h3 style="margin:0 0 4px;color:#2e7d32">⭐ Rating Pelayanan</h3>' +
+        '<p id="rmInfo" style="font-size:12px;color:#666;margin:0 0 12px"></p>' +
+        '<div id="rmStars" style="font-size:36px;cursor:pointer;user-select:none;margin-bottom:10px"></div>' +
+        '<textarea id="rmReview" placeholder="Tulis review / komentar (opsional)..." style="width:100%;height:80px;border:1px solid #bbb;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box"></textarea>' +
+        '<div style="display:flex;gap:8px;justify-content:center;margin-top:14px">' +
+        '<button id="rmLater" style="background:#888;padding:8px 14px;border:0;border-radius:6px;color:#fff;cursor:pointer">Nanti</button>' +
+        '<button id="rmSubmit" style="background:#2e7d32;padding:8px 18px;border:0;border-radius:6px;color:#fff;cursor:pointer">Kirim Rating</button>' +
+        '</div></div>';
+      document.body.appendChild(m);
+      document.getElementById("rmStars").addEventListener("click", e => {
+        const t = e.target;
+        if (t.dataset && t.dataset.star) { pickedStars = parseInt(t.dataset.star, 10); renderStars(); }
+      });
+      document.getElementById("rmLater").onclick = () => {
+        m.style.display = "none";
+        window.__ratingSkipUntil = Date.now() + 10 * 60 * 1000;
+      };
+      document.getElementById("rmSubmit").onclick = submitRating;
+    }
+    document.getElementById("rmInfo").textContent = "Pengambilan tanggal " + (item.tanggal || "-") + " • Petugas: " + (item.petugas || "-");
+    document.getElementById("rmReview").value = "";
+    renderStars();
+    m.style.display = "flex";
+  }
+
+  function submitRating() {
+    if (!currentRatingItem) return;
+    if (pickedStars < 1) { if (typeof toast === "function") toast("Pilih bintang dulu (1-5).", "warning"); return; }
+    const review = document.getElementById("rmReview").value.trim();
+    db.collection("ratings").doc(currentRatingItem.id).update({
+      status: "filled",
+      rating: pickedStars,
+      review: review,
+      ratedBy: (typeof currentUser !== "undefined" && currentUser) ? currentUser.email : "",
+      filledAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      if (typeof toast === "function") toast("Terima kasih! Rating terkirim. 🙏", "success");
+      document.getElementById("ratingModal").style.display = "none";
+      loadRatingStats();
+      loadReviewList();
+      setTimeout(() => maybePromptUser(true), 800);
+    }).catch(e => { if (typeof toast === "function") toast("Gagal kirim rating: " + e.message, "error"); });
+  }
+
+  function maybePromptUser(force) {
+    if (typeof db === "undefined") return;
+    if ((window.currentUserRole || "") !== "user") return;
+    if (!force && window.__ratingSkipUntil && Date.now() < window.__ratingSkipUntil) return;
+    if (document.getElementById("ratingModal") && document.getElementById("ratingModal").style.display === "flex") return;
+    db.collection("ratings").where("status", "==", "pending").limit(1).get().then(snap => {
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        if (typeof toast === "function") toast("⭐ Mohon rating pelayanan untuk pengambilan terbaru!", "info");
+        showRatingModal({ id: doc.id, ...doc.data() });
+      }
+    }).catch(() => {});
+  }
+
+  // 6) Suntik UI rating ke public view & dashboard admin
+  function injectRatingUI() {
+    const pub = document.getElementById("publicView");
+    if (pub && !document.getElementById("pubRatingCard") && !pub.classList.contains("hidden")) {
+      const card = document.createElement("div");
+      card.style.cssText = "margin:1rem auto;max-width:900px;padding:1.1rem;text-align:center;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)";
+      card.innerHTML = '<h3 style="margin:0 0 6px;color:#2e7d32">⭐ Rating Pelayanan Kami</h3><div id="pubRatingCard" style="color:#888">Memuat rating...</div>';
+      pub.appendChild(card);
+    }
+    const rep = document.getElementById("dashReport");
+    if (rep && !document.getElementById("admRatingBlock")) {
+      const block = document.createElement("div");
+      block.id = "admRatingBlock";
+      block.innerHTML =
+        '<div style="margin-top:1.5rem;padding:1.1rem;text-align:center;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)">' +
+        '<h3 style="margin:0 0 6px;color:#2e7d32">⭐ Rating Pelayanan Keseluruhan</h3>' +
+        '<div id="admRatingCard" style="color:#888">Memuat...</div>' +
+        '</div>' +
+        '<div style="margin-top:1rem;padding:1.1rem;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)">' +
+        '<h3 style="margin:0 0 10px;color:#2e7d32">📝 Review Masuk</h3>' +
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+        '<thead><tr style="background:#e8f5e9"><th style="border:1px solid #ddd;padding:6px">Waktu</th><th style="border:1px solid #ddd;padding:6px">Tgl Ambil</th><th style="border:1px solid #ddd;padding:6px">Petugas</th><th style="border:1px solid #ddd;padding:6px">Bintang</th><th style="border:1px solid #ddd;padding:6px">Review</th><th style="border:1px solid #ddd;padding:6px">Status</th></tr></thead>' +
+        '<tbody id="reviewTableBody"></tbody></table></div>' +
+        '</div>';
+      rep.appendChild(block);
+    }
+  }
+
+  // 7) Boot rating: jalan otomatis
+  (function ratingBoot() {
+    function tick() {
+      ensureRatingForSampah();
+      autoExpireRatings();
+      injectRatingUI();
+      loadRatingStats();
+      if ((window.currentUserRole || "") === "admin") loadReviewList();
+      maybePromptUser(false);
+    }
+    setTimeout(tick, 2500);
+    setInterval(tick, 60000);
+  })();
+
   // ═══ 1) EXPORT CSV ═══
   window.exportReportCSV = function() {
     const tbody = document.getElementById("reportTableBody");
@@ -310,7 +532,7 @@ console.log("%cADDON v11 — pad popup & ttd besar", "color:#6a1b9a;font-weight:
     w.focus();
   };
 
-  // ═══ 3) SURAT JALAN v11 ═══
+  // ═══ 3) SURAT JALAN ═══
   window.printSuratJalan = function(docId) {
     pendingDocId = docId;
     openSignModal();
